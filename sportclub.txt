@@ -1,8 +1,4 @@
--- ============================================================================
 -- SQL Script for BalancePsy Database (PostgreSQL)
--- Project: Mental Health Platform with Psychologist Appointments
--- Database: PostgreSQL 12+
--- ============================================================================
 
 -- Drop existing tables (in reverse order of dependencies)
 DROP TABLE IF EXISTS notifications CASCADE;

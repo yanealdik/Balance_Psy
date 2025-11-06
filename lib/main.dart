@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'screens/splash/splash_screen.dart';
 import 'screens/home/P_home_screen/P_home_screen.dart';
-import 'web/web_main_screen.dart'; // Импорт веб-версии
 import 'theme/app_colors.dart';
 
 void main() {
@@ -85,7 +84,6 @@ class BalancePsyApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/home': (context) => const PsychologistHomeScreen(),
-        '/web': (context) => const WebMainScreen(), // Веб-версия
       },
     );
   }
