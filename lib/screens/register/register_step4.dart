@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart'; // Добавили
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/step_indicator.dart';
 import '../../widgets/back_button.dart';
+import '../../providers/registration_provider.dart'; // Добавили
 import '../register/register_step5.dart';
 import '../register/parental_consent.dart';
 
-/// Экран онбординга Шаг 4 - Скриншот 6
 class OnboardingStep4Screen extends StatefulWidget {
   const OnboardingStep4Screen({super.key});
-
   @override
   State<OnboardingStep4Screen> createState() => _OnboardingStep4ScreenState();
 }
@@ -20,12 +20,27 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
   final TextEditingController _dayController = TextEditingController();
   final TextEditingController _monthController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
-
   final FocusNode _dayFocus = FocusNode();
   final FocusNode _monthFocus = FocusNode();
   final FocusNode _yearFocus = FocusNode();
-
   String? errorMessage;
+  @override
+  void initState() {
+    super.initState();
+    // Загружаем сохранённые данные
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final regProvider = Provider.of<RegistrationProvider>(
+        context,
+        listen: false,
+      );
+      if (regProvider.dateOfBirth != null) {
+        final date = regProvider.dateOfBirth!;
+        _dayController.text = date.day.toString().padLeft(2, '0');
+        _monthController.text = date.month.toString().padLeft(2, '0');
+        _yearController.text = date.year.toString();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -42,26 +57,20 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
     final today = DateTime.now();
     final birthDate = DateTime(year, month, day);
     int age = today.year - birthDate.year;
-
     if (today.month < birthDate.month ||
         (today.month == birthDate.month && today.day < birthDate.day)) {
       age--;
     }
-
     return age;
   }
 
   bool _isValidDate(int day, int month, int year) {
     if (month < 1 || month > 12) return false;
     if (day < 1 || day > 31) return false;
-
     final daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-    // Проверка високосного года
     if (month == 2 && year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
       return day <= 29;
     }
-
     return day <= daysInMonth[month - 1];
   }
 
@@ -69,7 +78,6 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
     setState(() {
       errorMessage = null;
     });
-
     if (_dayController.text.isEmpty ||
         _monthController.text.isEmpty ||
         _yearController.text.isEmpty) {
@@ -78,42 +86,43 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
       });
       return;
     }
-
     final day = int.tryParse(_dayController.text);
     final month = int.tryParse(_monthController.text);
     final year = int.tryParse(_yearController.text);
-
     if (day == null || month == null || year == null) {
       setState(() {
         errorMessage = 'Введите корректную дату';
       });
       return;
     }
-
     if (year < 1900 || year > DateTime.now().year) {
       setState(() {
         errorMessage = 'Введите корректный год';
       });
       return;
     }
-
     if (!_isValidDate(day, month, year)) {
       setState(() {
         errorMessage = 'Такой даты не существует';
       });
       return;
     }
-
     final age = _calculateAge(day, month, year);
-
     if (age < 13) {
       setState(() {
         errorMessage = 'Минимальный возраст для регистрации - 13 лет';
       });
       return;
-    }
-
-    // Если возраст меньше 18, показываем экран согласия родителей
+    } // Сохраняем дату рождения и возраст в provider
+    final regProvider = Provider.of<RegistrationProvider>(
+      context,
+      listen: false,
+    );
+    final birthDate = DateTime(year, month, day);
+    regProvider.setDateOfBirth(
+      birthDate,
+      age,
+    ); // Если возраст меньше 18, показываем экран согласия родителей
     if (age < 18) {
       Navigator.push(
         context,
@@ -137,7 +146,6 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Верхняя часть с кнопкой назад и индикатором
             const Padding(
               padding: EdgeInsets.all(16),
               child: Row(
@@ -148,25 +156,18 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                 ],
               ),
             ),
-
-            // Контент
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
-
-                    // Заголовок
                     Text(
                       'Ваша дата рождения?',
                       style: AppTextStyles.h2.copyWith(fontSize: 26),
                       textAlign: TextAlign.center,
                     ),
-
                     const SizedBox(height: 12),
-
-                    // Подзаголовок
                     Text(
                       'Это поможет нам персонализировать ваш опыт',
                       style: AppTextStyles.body2.copyWith(
@@ -174,14 +175,10 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-
                     const SizedBox(height: 60),
-
-                    // Поля ввода даты
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // День
                         _buildDateField(
                           controller: _dayController,
                           focusNode: _dayFocus,
@@ -190,7 +187,6 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                           maxLength: 2,
                           width: 70,
                         ),
-
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Text(
@@ -200,8 +196,6 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                             ),
                           ),
                         ),
-
-                        // Месяц
                         _buildDateField(
                           controller: _monthController,
                           focusNode: _monthFocus,
@@ -210,7 +204,6 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                           maxLength: 2,
                           width: 70,
                         ),
-
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Text(
@@ -220,8 +213,6 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                             ),
                           ),
                         ),
-
-                        // Год
                         _buildDateField(
                           controller: _yearController,
                           focusNode: _yearFocus,
@@ -232,10 +223,7 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Сообщение об ошибке
                     if (errorMessage != null)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -265,10 +253,7 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                           ],
                         ),
                       ),
-
                     const SizedBox(height: 40),
-
-                    // Подсказка
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -298,14 +283,13 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                 ),
               ),
             ),
-
-            // Кнопка "Продолжить"
             Padding(
               padding: const EdgeInsets.all(24),
               child: CustomButton(
                 text: 'Продолжить',
                 showArrow: true,
-                onPressed: _validateAndProceed, isFullWidth: true,
+                onPressed: _validateAndProceed,
+                isFullWidth: true,
               ),
             ),
           ],
@@ -356,7 +340,6 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
           if (value.length == maxLength && !isLast && nextFocus != null) {
             FocusScope.of(context).requestFocus(nextFocus);
           }
-
           if (errorMessage != null) {
             setState(() {
               errorMessage = null;

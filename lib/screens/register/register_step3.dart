@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart'; // Добавили
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/step_indicator.dart';
 import '../../widgets/back_button.dart';
+import '../../providers/registration_provider.dart'; // Добавили
 import '../register/register_step4.dart';
 
-/// Экран онбординга Шаг 3 - Скриншот 5
 class OnboardingStep3Screen extends StatefulWidget {
   const OnboardingStep3Screen({super.key});
 
@@ -19,13 +20,29 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
   int? selectedGender;
 
   @override
+  void initState() {
+    super.initState();
+    // Загружаем сохранённые данные
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final regProvider = Provider.of<RegistrationProvider>(
+        context,
+        listen: false,
+      );
+      if (regProvider.gender != null) {
+        setState(() {
+          selectedGender = regProvider.gender == 'male' ? 0 : 1;
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Верхняя часть с кнопкой назад и индикатором
             const Padding(
               padding: EdgeInsets.all(16),
               child: Row(
@@ -37,7 +54,6 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
               ),
             ),
 
-            // Контент
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -45,36 +61,32 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-
-                    // Заголовок
                     Text(
                       'Кто ты?',
                       style: AppTextStyles.h2.copyWith(fontSize: 26),
                     ),
-
                     const SizedBox(height: 40),
-
-                    // Мужчина
                     _buildGenderOption(
                       index: 0,
                       title: 'Мужчина',
                       icon: Icons.male,
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Женщина
                     _buildGenderOption(
                       index: 1,
                       title: 'Женщина',
                       icon: Icons.female,
                     ),
-
                     const SizedBox(height: 30),
-
-                    // Кнопка "Предпочитаю пропустить"
                     GestureDetector(
                       onTap: () {
+                        // Пропустить выбор пола
+                        final regProvider = Provider.of<RegistrationProvider>(
+                          context,
+                          listen: false,
+                        );
+                        regProvider.setGender(null);
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -110,27 +122,37 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
-
-            // Кнопка "Продолжить"
             Padding(
               padding: const EdgeInsets.all(24),
               child: CustomButton(
                 text: 'Продолжить',
                 showArrow: true,
                 onPressed: () {
+                  // Сохраняем пол в provider
+                  final regProvider = Provider.of<RegistrationProvider>(
+                    context,
+                    listen: false,
+                  );
+                  String? gender;
+                  if (selectedGender == 0) {
+                    gender = 'male';
+                  } else if (selectedGender == 1) {
+                    gender = 'female';
+                  }
+                  regProvider.setGender(gender);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const OnboardingStep4Screen(),
                     ),
                   );
-                }, isFullWidth: true,
+                },
+                isFullWidth: true,
               ),
             ),
           ],
@@ -139,14 +161,12 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
     );
   }
 
-  // Вариант выбора пола
   Widget _buildGenderOption({
     required int index,
     required String title,
     required IconData icon,
   }) {
     final isSelected = selectedGender == index;
-
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -171,12 +191,6 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
                     spreadRadius: 2,
                     offset: const Offset(0, 8),
                   ),
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.2),
-                    blurRadius: 40,
-                    spreadRadius: 5,
-                    offset: const Offset(0, 12),
-                  ),
                 ]
               : [
                   BoxShadow(
@@ -188,7 +202,6 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
         ),
         child: Stack(
           children: [
-            // Картинка на заднем плане
             Positioned(
               right: 0,
               bottom: 0,
@@ -215,8 +228,6 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
                 ),
               ),
             ),
-
-            // Текст и иконка поверх картинки
             Positioned(
               top: 24,
               left: 24,
@@ -242,8 +253,6 @@ class _OnboardingStep3ScreenState extends State<OnboardingStep3Screen> {
                 ],
               ),
             ),
-
-            // Галочка при выборе
             if (isSelected)
               Positioned(
                 top: 16,

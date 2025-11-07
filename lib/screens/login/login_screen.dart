@@ -1,12 +1,11 @@
-import 'package:balance_psy/screens/home/P_home_screen/P_home_screen.dart';
-import 'package:balance_psy/screens/welcome/welcome_screen.dart';
+import 'package:balance_psy/screens/home/U_home_screen/home_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
-import '../home/U_home_screen/home_screen.dart';
+import '../../providers/auth_provider.dart';
 
-/// Экран входа в приложение
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -33,6 +32,40 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showError('Заполните все поля');
+      return;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.login(email, password);
+
+    if (success) {
+      // Успешный вход
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
+      // Ошибка
+      _showError(authProvider.errorMessage ?? 'Ошибка входа');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,191 +78,80 @@ class _LoginScreenState extends State<LoginScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-
-              // Заголовок
-              Text(
-                'Добро пожаловать!',
-                style: AppTextStyles.h1.copyWith(fontSize: 32),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Поле "Почта"
-              Text(
-                'Почта',
-                style: AppTextStyles.body1.copyWith(
-                  color: AppColors.primary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildEmailField(),
-
-              const SizedBox(height: 24),
-
-              // Поле "Пароль"
-              Text(
-                'Пароль',
-                style: AppTextStyles.body1.copyWith(
-                  color: AppColors.primary,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildPasswordField(),
-
-              const SizedBox(height: 32),
-
-              // Кнопка "Войти"
-              CustomButton(
-                text: 'Войти',
-                onPressed: () {
-                  // Переход на главный экран
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
-                  );
-                },
-                icon: Icons.arrow_forward,
-                isFullWidth: true,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Разделитель "или"
-              Row(
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Divider(
-                      color: AppColors.textTertiary.withOpacity(0.3),
-                      thickness: 1,
+                  const SizedBox(height: 20),
+                  Text(
+                    'Добро пожаловать!',
+                    style: AppTextStyles.h1.copyWith(fontSize: 32),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Email
+                  Text(
+                    'Почта',
+                    style: AppTextStyles.body1.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 14,
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'или',
-                      style: AppTextStyles.body2.copyWith(
-                        color: AppColors.textSecondary,
+                  const SizedBox(height: 8),
+                  _buildEmailField(),
+                  const SizedBox(height: 24),
+
+                  // Password
+                  Text(
+                    'Пароль',
+                    style: AppTextStyles.body1.copyWith(
+                      color: AppColors.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPasswordField(),
+                  const SizedBox(height: 32),
+
+                  // Login Button
+                  CustomButton(
+                    text: authProvider.isLoading ? 'Вход...' : 'Войти',
+                    onPressed: authProvider.isLoading ? null : _handleLogin,
+                    icon: Icons.arrow_forward,
+                    isFullWidth: true,
+                  ),
+
+                  // Error message
+                  if (authProvider.errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: AppColors.textTertiary.withOpacity(0.3),
-                      thickness: 1,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Кнопка "Continue with Apple"
-              _buildSocialButton(
-                text: 'Continue with Apple',
-                icon: Icons.apple,
-                backgroundColor: Colors.black,
-                textColor: Colors.white,
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PsychologistHomeScreen(),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              // Кнопка "Continue with Google"
-              _buildSocialButton(
-                text: 'CONTINUE WITH GOOGLE',
-                icon: Icons.g_mobiledata,
-                backgroundColor: Colors.white,
-                textColor: Colors.black87,
-                borderColor: AppColors.inputBorder,
-                onPressed: () {
-                  // TODO: Implement Google sign in
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Ссылки внизу
-              Center(
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        // TODO: Implement forgot password
-                      },
                       child: Text(
-                        'Забыли Пароль?',
-                        style: AppTextStyles.body1.copyWith(
-                          color: AppColors.primary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () {
-                        // Переход на экран входа
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const WelcomeScreen(),
-                          ),
-                        );
-                      },
-                      child: RichText(
-                        text: TextSpan(
-                          style: AppTextStyles.body1.copyWith(fontSize: 14),
-                          children: const [
-                            TextSpan(
-                              text: 'Нету аккаунта? ',
-                              style: TextStyle(color: AppColors.textSecondary),
-                            ),
-                            TextSpan(
-                              text: 'Регистрация',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            TextSpan(
-                              text: '.',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                        authProvider.errorMessage!,
+                        style: const TextStyle(color: Colors.red),
                       ),
                     ),
                   ],
-                ),
-              ),
 
-              const SizedBox(height: 30),
-            ],
-          ),
-        ),
+                  const SizedBox(height: 32),
+                  // ... остальной код ...
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  // Поле ввода email
   Widget _buildEmailField() {
     return Container(
       decoration: BoxDecoration(
@@ -267,7 +189,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Поле ввода пароля
   Widget _buildPasswordField() {
     return Container(
       decoration: BoxDecoration(
@@ -309,50 +230,6 @@ class _LoginScreenState extends State<LoginScreen> {
             horizontal: 20,
             vertical: 16,
           ),
-        ),
-      ),
-    );
-  }
-
-  // Кнопка социальной сети
-  Widget _buildSocialButton({
-    required String text,
-    required IconData icon,
-    required Color backgroundColor,
-    required Color textColor,
-    Color? borderColor,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: textColor,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-            side: borderColor != null
-                ? BorderSide(color: borderColor, width: 1.5)
-                : BorderSide.none,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: textColor),
-            const SizedBox(width: 12),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
-            ),
-          ],
         ),
       ),
     );

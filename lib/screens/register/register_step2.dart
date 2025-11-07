@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Добавили
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/step_indicator.dart';
 import '../../widgets/back_button.dart';
+import '../../providers/registration_provider.dart'; // Добавили
 import '../register/register_step3.dart';
 
-/// Экран онбординга Шаг 2 - Имя и интересы
 class OnboardingStep2Screen extends StatefulWidget {
   const OnboardingStep2Screen({super.key});
 
@@ -81,9 +82,27 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
   @override
   void initState() {
     super.initState();
-    // Слушаем изменения в текстовом поле
     _nameController.addListener(() {
       setState(() {});
+    });
+
+    // Загружаем сохранённые данные
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final regProvider = Provider.of<RegistrationProvider>(
+        context,
+        listen: false,
+      );
+      if (regProvider.fullName != null) {
+        _nameController.text = regProvider.fullName!;
+      }
+      if (regProvider.interests.isNotEmpty) {
+        setState(() {
+          selectedInterests = regProvider.interests
+              .map((name) => interests.indexWhere((i) => i['text'] == name))
+              .where((index) => index != -1)
+              .toList();
+        });
+      }
     });
   }
 
@@ -105,7 +124,6 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
 
   bool get _canContinue {
     final name = _nameController.text.trim();
-    // Проверяем что имя содержит хотя бы одну букву (любой язык) и не пустое
     final hasLetters = RegExp(r'[a-zA-Zа-яА-ЯёЁ]').hasMatch(name);
     return name.isNotEmpty &&
         name.length >= 2 &&
@@ -120,7 +138,6 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Верхняя часть с кнопкой назад и индикатором
             const Padding(
               padding: EdgeInsets.all(16),
               child: Row(
@@ -132,7 +149,6 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
               ),
             ),
 
-            // Контент
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -140,25 +156,18 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-
-                    // Заголовок
                     Text(
                       'Расскажи о себе',
                       style: AppTextStyles.h2.copyWith(fontSize: 26),
                     ),
-
                     const SizedBox(height: 32),
-
-                    // Поле ввода имени
                     Text(
                       'Как тебя зовут?',
                       style: AppTextStyles.body1.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
                     CustomTextField(
                       controller: _nameController,
                       hintText: 'Введи свое имя',
@@ -169,8 +178,6 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                         setState(() {});
                       },
                     ),
-
-                    // Подсказка для имени
                     if (_nameController.text.isNotEmpty &&
                         _nameController.text.trim().length < 2)
                       Padding(
@@ -183,19 +190,14 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                           ),
                         ),
                       ),
-
                     const SizedBox(height: 32),
-
-                    // Выбор интересов
                     Text(
                       'Что тебя интересует?',
                       style: AppTextStyles.body1.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-
                     const SizedBox(height: 8),
-
                     Text(
                       'Выбери несколько тем',
                       style: AppTextStyles.body3.copyWith(
@@ -203,10 +205,7 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                         fontSize: 14,
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Сетка интересов
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
@@ -215,10 +214,7 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                         (index) => _buildInterestChip(index),
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Индикатор выбора
                     if (selectedInterests.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -264,14 +260,12 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                           ],
                         ),
                       ),
-
                     const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
 
-            // Кнопка "Продолжить"
             Padding(
               padding: const EdgeInsets.all(24),
               child: CustomButton(
@@ -279,9 +273,21 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
                 showArrow: true,
                 onPressed: _canContinue
                     ? () {
-                        // Сохраняем имя и интересы
-                        print('Name: ${_nameController.text}');
-                        print('Interests: $selectedInterests');
+                        // Сохраняем данные в provider
+                        final regProvider = Provider.of<RegistrationProvider>(
+                          context,
+                          listen: false,
+                        );
+
+                        final selectedInterestNames = selectedInterests
+                            .map((index) => interests[index]['text'] as String)
+                            .toList();
+
+                        regProvider.setPersonalInfo(
+                          _nameController.text.trim(),
+                          selectedInterestNames,
+                        );
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -306,7 +312,6 @@ class _OnboardingStep2ScreenState extends State<OnboardingStep2Screen> {
     return 'Выбрано $count тем';
   }
 
-  // Чип интереса
   Widget _buildInterestChip(int index) {
     final interest = interests[index];
     final isSelected = selectedInterests.contains(index);
