@@ -221,30 +221,43 @@ class RequestCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
+              // Кнопка "Отклонить" - теперь скругленная!
               Expanded(
-                child: OutlinedButton(
-                  onPressed: onDecline,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: BorderSide(color: AppColors.error, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                child: Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(24), // Скругленная!
+                    border: Border.all(color: AppColors.error, width: 1.5),
                   ),
-                  child: const Text(
-                    'Отклонить',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onDecline,
+                      borderRadius: BorderRadius.circular(24),
+                      child: Center(
+                        child: Text(
+                          'Отклонить',
+                          style: AppTextStyles.button.copyWith(
+                            color: AppColors.error,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
+              // Кнопка "Подтвердить"
               Expanded(
                 flex: 2,
                 child: CustomButton(
                   text: 'Подтвердить',
                   onPressed: onAccept,
                   isFullWidth: true,
+                  height: 48,
+                  fontSize: 14,
                 ),
               ),
             ],

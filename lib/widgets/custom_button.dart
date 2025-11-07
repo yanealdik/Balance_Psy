@@ -8,8 +8,11 @@ class CustomButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isPrimary; // true - синяя кнопка, false - белая кнопка
   final bool isOutlined; // true - обводка без заливки
-  final IconData? icon; // Иконка для кнопки
+  final IconData? icon; // Иконка для кнопки (слева от текста)
   final bool showArrow; // Показывать стрелку справа
+  final bool isFullWidth; // Растянуть на всю ширину
+  final double? height; // Высота кнопки (по умолчанию 56)
+  final double? fontSize; // Размер шрифта (по умолчанию 16)
 
   const CustomButton({
     super.key,
@@ -18,21 +21,24 @@ class CustomButton extends StatelessWidget {
     this.isPrimary = true,
     this.isOutlined = false,
     this.icon,
-    this.showArrow = false, required bool isFullWidth,
+    this.showArrow = false,
+    this.isFullWidth = false,
+    this.height,
+    this.fontSize,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 56,
+    final buttonContent = Container(
+      width: isFullWidth ? double.infinity : null,
+      height: height ?? 56,
       decoration: BoxDecoration(
         color: _getBackgroundColor(),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular((height ?? 56) / 2),
         border: isOutlined
             ? Border.all(color: AppColors.primary, width: 2)
             : null,
-        boxShadow: isPrimary && !isOutlined
+        boxShadow: isPrimary && !isOutlined && onPressed != null
             ? [
                 BoxShadow(
                   color: AppColors.primary.withOpacity(0.3),
@@ -46,10 +52,11 @@ class CustomButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular((height ?? 56) / 2),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
+              mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (icon != null) ...[
@@ -58,9 +65,14 @@ class CustomButton extends StatelessWidget {
                 ],
                 Text(
                   text,
-                  style: isPrimary
-                      ? AppTextStyles.button
-                      : AppTextStyles.buttonSecondary,
+                  style:
+                      (isPrimary
+                              ? AppTextStyles.button
+                              : AppTextStyles.buttonSecondary)
+                          .copyWith(
+                            fontSize: fontSize ?? 16,
+                            color: _getTextColor(),
+                          ),
                 ),
                 if (showArrow) ...[
                   const SizedBox(width: 8),
@@ -72,16 +84,26 @@ class CustomButton extends StatelessWidget {
         ),
       ),
     );
+
+    return buttonContent;
   }
 
   // Определяем цвет фона кнопки
   Color _getBackgroundColor() {
+    if (onPressed == null) {
+      // Disabled state
+      return AppColors.inputBorder;
+    }
     if (isOutlined) return Colors.transparent;
     return isPrimary ? AppColors.primary : AppColors.background;
   }
 
   // Определяем цвет текста кнопки
   Color _getTextColor() {
+    if (onPressed == null) {
+      // Disabled state
+      return AppColors.textTertiary;
+    }
     if (isOutlined) return AppColors.primary;
     return isPrimary ? AppColors.textWhite : AppColors.primary;
   }

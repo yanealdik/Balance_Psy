@@ -47,7 +47,6 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
   }
 }
 
-// Весь остальной код переносим в _HomeContent
 class _HomeContent extends StatefulWidget {
   const _HomeContent();
 
