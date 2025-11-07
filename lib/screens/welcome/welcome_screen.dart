@@ -3,7 +3,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/back_button.dart';
-import '../register/register_step1.dart';
+import '../register/agreement_screen.dart';
 
 /// Экран приветствия - Скриншот 2
 class WelcomeScreen extends StatelessWidget {
@@ -19,11 +19,7 @@ class WelcomeScreen extends StatelessWidget {
             // Верхняя часть с кнопкой назад
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CustomBackButton(),
-                ],
-              ),
+              child: Row(children: [CustomBackButton()]),
             ),
 
             // Контент (скроллящаяся часть)
@@ -87,10 +83,11 @@ class WelcomeScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const OnboardingStep1Screen(),
+                      builder: (context) => const AgreementScreen(),
                     ),
                   );
-                }, isFullWidth: true,
+                },
+                isFullWidth: true,
               ),
             ),
           ],

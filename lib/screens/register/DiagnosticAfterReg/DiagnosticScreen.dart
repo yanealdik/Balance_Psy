@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_button.dart';
+import '../../intro/intro_screen.dart';
 
 /// Первичная диагностика после регистрации (5-7 ключевых вопросов)
 class InitialDiagnosticScreen extends StatefulWidget {
   const InitialDiagnosticScreen({super.key});
 
   @override
-  State<InitialDiagnosticScreen> createState() => _InitialDiagnosticScreenState();
+  State<InitialDiagnosticScreen> createState() =>
+      _InitialDiagnosticScreenState();
 }
 
 class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
@@ -114,8 +116,10 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
             icon: const Icon(Icons.close, color: AppColors.textPrimary),
             onPressed: () => _showSkipDialog(),
           ),
-          Text('Первичная диагностика', 
-            style: AppTextStyles.h3.copyWith(fontSize: 18)),
+          Text(
+            'Первичная диагностика',
+            style: AppTextStyles.h3.copyWith(fontSize: 18),
+          ),
           const SizedBox(width: 48),
         ],
       ),
@@ -132,13 +136,21 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Вопрос ${_currentPage + 1} из ${_questions.length}',
+              Text(
+                'Вопрос ${_currentPage + 1} из ${_questions.length}',
                 style: AppTextStyles.body2.copyWith(
-                  fontSize: 13, color: AppColors.textSecondary)),
-              Text('${(progress * 100).toInt()}%',
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                '${(progress * 100).toInt()}%',
                 style: AppTextStyles.body2.copyWith(
-                  fontSize: 13, color: AppColors.primary, 
-                  fontWeight: FontWeight.w600)),
+                  fontSize: 13,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -147,7 +159,9 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
             child: LinearProgressIndicator(
               value: progress,
               backgroundColor: AppColors.inputBorder,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
               minHeight: 6,
             ),
           ),
@@ -166,8 +180,10 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          Text(question['question'] as String,
-            style: AppTextStyles.h2.copyWith(fontSize: 24, height: 1.3)),
+          Text(
+            question['question'] as String,
+            style: AppTextStyles.h2.copyWith(fontSize: 24, height: 1.3),
+          ),
           const SizedBox(height: 32),
           if (type == 'mood') _buildMoodOptions(index),
           if (type == 'slider') _buildSliderOption(index),
@@ -184,30 +200,48 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
       children: options.map((option) {
         final isSelected = _answers[questionIndex] == option['value'];
         return GestureDetector(
-          onTap: () => setState(() => _answers[questionIndex] = option['value']),
+          onTap: () =>
+              setState(() => _answers[questionIndex] = option['value']),
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) 
-                : AppColors.cardBackground,
+              color: isSelected
+                  ? AppColors.primary.withOpacity(0.1)
+                  : AppColors.cardBackground,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.transparent, 
-                width: 2),
+                color: isSelected ? AppColors.primary : Colors.transparent,
+                width: 2,
+              ),
             ),
             child: Row(
               children: [
-                Text(option['emoji'] as String, 
-                  style: const TextStyle(fontSize: 32)),
+                Text(
+                  option['emoji'] as String,
+                  style: const TextStyle(fontSize: 32),
+                ),
                 const SizedBox(width: 16),
-                Expanded(child: Text(option['label'] as String,
-                  style: AppTextStyles.body1.copyWith(
-                    fontSize: 16,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? AppColors.primary : AppColors.textPrimary))),
-                if (isSelected) const Icon(Icons.check_circle, 
-                  color: AppColors.primary, size: 24),
+                Expanded(
+                  child: Text(
+                    option['label'] as String,
+                    style: AppTextStyles.body1.copyWith(
+                      fontSize: 16,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
               ],
             ),
           ),
@@ -234,22 +268,37 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
               color: AppColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Text(currentValue.toInt().toString(),
+            child: Text(
+              currentValue.toInt().toString(),
               style: AppTextStyles.h1.copyWith(
-                fontSize: 48, color: AppColors.primary)),
+                fontSize: 48,
+                color: AppColors.primary,
+              ),
+            ),
           ),
           const SizedBox(height: 24),
           Slider(
-            value: currentValue, min: 0, max: 10, divisions: 10,
+            value: currentValue,
+            min: 0,
+            max: 10,
+            divisions: 10,
             activeColor: AppColors.primary,
-            onChanged: (value) => 
-              setState(() => _answers[questionIndex] = value),
+            onChanged: (value) =>
+                setState(() => _answers[questionIndex] = value),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: labels.map((label) => 
-              Text(label, style: AppTextStyles.body2.copyWith(
-                fontSize: 12, color: AppColors.textSecondary))).toList(),
+            children: labels
+                .map(
+                  (label) => Text(
+                    label,
+                    style: AppTextStyles.body2.copyWith(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
@@ -262,27 +311,43 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
       children: options.map((option) {
         final isSelected = _answers[questionIndex] == option['value'];
         return GestureDetector(
-          onTap: () => setState(() => _answers[questionIndex] = option['value']),
+          onTap: () =>
+              setState(() => _answers[questionIndex] = option['value']),
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) 
-                : AppColors.cardBackground,
+              color: isSelected
+                  ? AppColors.primary.withOpacity(0.1)
+                  : AppColors.cardBackground,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.transparent, 
-                width: 2),
+                color: isSelected ? AppColors.primary : Colors.transparent,
+                width: 2,
+              ),
             ),
             child: Row(
               children: [
-                Expanded(child: Text(option['label'] as String,
-                  style: AppTextStyles.body1.copyWith(
-                    fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? AppColors.primary : AppColors.textPrimary))),
-                if (isSelected) const Icon(Icons.check_circle, 
-                  color: AppColors.primary, size: 24),
+                Expanded(
+                  child: Text(
+                    option['label'] as String,
+                    style: AppTextStyles.body1.copyWith(
+                      fontSize: 15,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
               ],
             ),
           ),
@@ -292,45 +357,64 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
   }
 
   Widget _buildSingleOptions(int questionIndex) {
-    final options = _questions[questionIndex]['options'] 
-      as List<Map<String, dynamic>>;
+    final options =
+        _questions[questionIndex]['options'] as List<Map<String, dynamic>>;
     return Column(
       children: options.map((option) {
         final isSelected = _answers[questionIndex] == option['value'];
         return GestureDetector(
-          onTap: () => setState(() => _answers[questionIndex] = option['value']),
+          onTap: () =>
+              setState(() => _answers[questionIndex] = option['value']),
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) 
-                : AppColors.cardBackground,
+              color: isSelected
+                  ? AppColors.primary.withOpacity(0.1)
+                  : AppColors.cardBackground,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.transparent, 
-                width: 2),
+                color: isSelected ? AppColors.primary : Colors.transparent,
+                width: 2,
+              ),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary 
-                      : AppColors.primary.withOpacity(0.1),
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(option['icon'] as IconData,
-                    color: isSelected ? Colors.white : AppColors.primary, 
-                    size: 24),
+                  child: Icon(
+                    option['icon'] as IconData,
+                    color: isSelected ? Colors.white : AppColors.primary,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 16),
-                Expanded(child: Text(option['label'] as String,
-                  style: AppTextStyles.body1.copyWith(
-                    fontSize: 15,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? AppColors.primary : AppColors.textPrimary))),
-                if (isSelected) const Icon(Icons.check_circle, 
-                  color: AppColors.primary, size: 24),
+                Expanded(
+                  child: Text(
+                    option['label'] as String,
+                    style: AppTextStyles.body1.copyWith(
+                      fontSize: 15,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
               ],
             ),
           ),
@@ -350,7 +434,9 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow.withOpacity(0.1),
-            blurRadius: 8, offset: const Offset(0, -2)),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
         ],
       ),
       child: Row(
@@ -360,13 +446,16 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
               child: OutlinedButton(
                 onPressed: () => _pageController.previousPage(
                   duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut),
+                  curve: Curves.easeInOut,
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
                   side: const BorderSide(color: AppColors.inputBorder),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 16)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
                 child: const Text('Назад'),
               ),
             ),
@@ -375,16 +464,26 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
             flex: 2,
             child: CustomButton(
               text: isLastPage ? 'Завершить' : 'Далее',
-              onPressed: hasAnswer ? () {
-                if (isLastPage) {
-                  _completeDiagnostic();
-                } else {
-                  _pageController.nextPage(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut);
-                }
-              } : null,
-              icon: isLastPage ? Icons.check : Icons.arrow_forward, 
+              onPressed: hasAnswer
+                  ? () {
+                      if (isLastPage) {
+                        _completeDiagnostic();
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const IntroScreen(), // ← Переход на знакомство
+                          ),
+                        );
+                      } else {
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    }
+                  : null,
+              icon: isLastPage ? Icons.check : Icons.arrow_forward,
               isFullWidth: true,
             ),
           ),
@@ -397,27 +496,38 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Пропустить диагностику?',
-          style: AppTextStyles.h3.copyWith(fontSize: 20)),
+        title: Text(
+          'Пропустить диагностику?',
+          style: AppTextStyles.h3.copyWith(fontSize: 20),
+        ),
         content: Text(
           'Первичная диагностика поможет нам лучше понять твоё состояние и подобрать подходящие рекомендации.',
-          style: AppTextStyles.body1.copyWith(fontSize: 15)),
+          style: AppTextStyles.body1.copyWith(fontSize: 15),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Продолжить тест',
+            child: Text(
+              'Продолжить тест',
               style: AppTextStyles.body1.copyWith(
-                fontSize: 15, color: AppColors.primary, 
-                fontWeight: FontWeight.w600)),
+                fontSize: 15,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.pop(context, {'skipped': true});
             },
-            child: Text('Пропустить',
+            child: Text(
+              'Пропустить',
               style: AppTextStyles.body1.copyWith(
-                fontSize: 15, color: AppColors.textSecondary)),
+                fontSize: 15,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ),
         ],
       ),
@@ -427,7 +537,7 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
   void _completeDiagnostic() {
     // Расчет базовых показателей
     final results = _calculateResults();
-    
+
     Navigator.pop(context, {
       'completed': true,
       'answers': _answers,
@@ -439,8 +549,7 @@ class _InitialDiagnosticScreenState extends State<InitialDiagnosticScreen> {
         content: const Text('✓ Первичная диагностика завершена!'),
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: AppColors.success,
       ),
     );

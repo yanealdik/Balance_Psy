@@ -1,6 +1,10 @@
 import 'package:balance_psy/screens/register/DiagnosticAfterReg/DiagnosticScreen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
+import '../../core/utils/error_handler.dart';
+import '../../providers/registration_provider.dart';
+import '../../services/registration_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
@@ -432,16 +436,41 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
                 text: 'Завершить регистрацию',
                 showArrow: true,
                 onPressed: _canComplete
-                    ? () {
+                    ? () async {
                         _validatePasswords();
                         if (_passwordError == null) {
-                          // Здесь отправка данных на backend
-                          Navigator.pushReplacement(
+                          final regProvider = Provider.of<RegistrationProvider>(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => const SuccessScreen(),
-                            ),
+                            listen: false,
                           );
+
+                          // Собираем данные для регистрации
+                          final registrationData = regProvider
+                              .getRegistrationData();
+
+                          try {
+                            // Отправляем данные на бэкенд
+                            final registrationService = RegistrationService();
+                            await registrationService.register(
+                              registrationData,
+                            );
+
+                            // Переходим на диагностику
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const InitialDiagnosticScreen(),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(ErrorHandler.getErrorMessage(e)),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       }
                     : null,
