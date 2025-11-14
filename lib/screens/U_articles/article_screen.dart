@@ -480,3 +480,4 @@ class CategoryItem {
 
   CategoryItem({required this.name, this.value});
 }
+
