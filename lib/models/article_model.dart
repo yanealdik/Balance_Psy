@@ -34,7 +34,10 @@ class ArticleModel {
       category: json['category'] as String,
       readTime: json['read_time'] as int?,
       imageUrl: json['image_url'] as String?,
-      createdAt: json['created_at'] != null
+      // Поддержка обоих вариантов: created_at (PostgreSQL) и date_created (Directus)
+      createdAt: json['date_created'] != null
+          ? DateTime.parse(json['date_created'] as String)
+          : json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
     );
@@ -51,7 +54,7 @@ class ArticleModel {
       'category': category,
       'read_time': readTime,
       'image_url': imageUrl,
-      'created_at': createdAt?.toIso8601String(),
+      'date_created': createdAt?.toIso8601String(),
     };
   }
 

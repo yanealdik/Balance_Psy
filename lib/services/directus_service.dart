@@ -38,11 +38,6 @@ class DirectusService {
     );
   }
 
-  /// Получить список опубликованных статей
-  ///
-  /// [category] - фильтр по категории (emotions, self_help, relationships, stress)
-  /// [limit] - количество статей (по умолчанию 50)
-  /// [offset] - смещение для пагинации
   Future<DirectusArticlesResponse> getArticles({
     String? category,
     int limit = 50,
@@ -52,11 +47,11 @@ class DirectusService {
       final Map<String, dynamic> queryParams = {
         'filter[status][_eq]': 'published',
         'fields':
-            'id,title,slug,excerpt,category,read_time,image_url,created_at',
-        'sort[]': '-created_at', // Сначала новые
+            'id,title,slug,excerpt,category,read_time,image_url,content,date_created',
+        'sort': '-date_created', // Используем системное поле Directus
         'limit': limit,
         'offset': offset,
-        'meta': 'total_count', // Получаем общее количество
+        'meta': 'total_count',
       };
 
       // Добавляем фильтр по категории если указан
@@ -64,15 +59,24 @@ class DirectusService {
         queryParams['filter[category][_eq]'] = category;
       }
 
+      print('🔍 Directus Query: $queryParams');
+
       final response = await _dio.get(
         '/items/articles',
         queryParameters: queryParams,
       );
 
+      print('✅ Directus Response Status: ${response.statusCode}');
+      print('📦 Directus Response Data: ${response.data}');
+
       return DirectusArticlesResponse.fromJson(
         response.data as Map<String, dynamic>,
       );
     } on DioException catch (e) {
+      print('❌ Directus Error Details:');
+      print('Status Code: ${e.response?.statusCode}');
+      print('Response Data: ${e.response?.data}');
+      print('Headers: ${e.response?.headers}');
       throw _handleError(e);
     }
   }
