@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_calendar.dart';
-import '../../../widgets/article_card.dart';
 import '../../../widgets/session_card.dart';
 import '../../../widgets/home/welcome_card.dart';
 import '../../../widgets/home/mood_tracker.dart';
@@ -134,12 +133,6 @@ class _HomeContentState extends State<_HomeContent> {
                   SectionHeader(
                     title: 'Полезно для тебя',
                     onTap: () => _goToTab(context, 2),
-                  ),
-                  const SizedBox(height: 16),
-                  HorizontalArticlesList(
-                    articles: recommendedArticles,
-                    cardWidth: 160,
-                    cardHeight: 130,
                   ),
                   const SizedBox(height: 30),
                 ],

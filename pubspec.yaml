@@ -17,6 +17,8 @@ dependencies:
 
   flutter_svg: ^2.0.9
 
+  flutter_html: ^3.0.0-beta.2
+
   # HTTP + авторизация
   dio: ^5.0.0
 

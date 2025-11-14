@@ -31,6 +31,7 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
   bool _isEmailValid = false;
   bool _isCodeSent = false;
   bool _isCodeVerified = false;
+  bool _isRegistering = false;
   String? _emailError;
   String? _codeError;
   String? _passwordError;
@@ -195,7 +196,8 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
   bool get _canComplete {
     return _isCodeVerified &&
         _passwordController.text.length >= 6 &&
-        _passwordController.text == _confirmPasswordController.text;
+        _passwordController.text == _confirmPasswordController.text &&
+        !_isRegistering;
   }
 
   @override
@@ -433,47 +435,11 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
             Padding(
               padding: const EdgeInsets.all(24),
               child: CustomButton(
-                text: 'Завершить регистрацию',
-                showArrow: true,
-                onPressed: _canComplete
-                    ? () async {
-                        _validatePasswords();
-                        if (_passwordError == null) {
-                          final regProvider = Provider.of<RegistrationProvider>(
-                            context,
-                            listen: false,
-                          );
-
-                          // Собираем данные для регистрации
-                          final registrationData = regProvider
-                              .getRegistrationData();
-
-                          try {
-                            // Отправляем данные на бэкенд
-                            final registrationService = RegistrationService();
-                            await registrationService.register(
-                              registrationData,
-                            );
-
-                            // Переходим на диагностику
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const InitialDiagnosticScreen(),
-                              ),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(ErrorHandler.getErrorMessage(e)),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    : null,
+                text: _isRegistering
+                    ? 'Регистрация...'
+                    : 'Завершить регистрацию',
+                showArrow: !_isRegistering,
+                onPressed: _canComplete ? _completeRegistration : null,
                 isFullWidth: true,
               ),
             ),
@@ -481,6 +447,121 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
         ),
       ),
     );
+  }
+
+  Future<void> _completeRegistration() async {
+    // Валидация паролей
+    _validatePasswords();
+    if (_passwordError != null) {
+      return;
+    }
+
+    setState(() => _isRegistering = true);
+
+    try {
+      final regProvider = Provider.of<RegistrationProvider>(
+        context,
+        listen: false,
+      );
+
+      // Сохраняем email и пароль
+      regProvider.setEmail(_emailController.text.trim());
+      regProvider.setPassword(_passwordController.text);
+
+      // Получаем данные для регистрации
+      final registrationData = regProvider.getRegistrationData();
+
+      print('🚀 Starting registration...');
+      print('📧 Email: ${registrationData['email']}');
+      print('👤 Name: ${registrationData['fullName']}');
+
+      // Отправляем запрос на backend
+      final registrationService = RegistrationService();
+      final user = await registrationService.register(registrationData);
+
+      print('✅ Registration successful! User ID: ${user.userId}');
+
+      // Показываем успешное сообщение
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Регистрация успешна! Добро пожаловать, ${user.fullName}!',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+
+      // Переходим на диагностику
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const InitialDiagnosticScreen(),
+        ),
+      );
+    } catch (e) {
+      print('❌ Registration failed: $e');
+
+      if (!mounted) return;
+
+      // Извлекаем сообщение об ошибке
+      String errorMessage = e.toString().replaceAll('Exception: ', '');
+
+      // Переводим частые ошибки
+      if (errorMessage.contains('Email already registered')) {
+        errorMessage = 'Этот email уже зарегистрирован';
+      } else if (errorMessage.contains('Email not verified')) {
+        errorMessage = 'Email не подтвержден. Введите код из письма.';
+      } else if (errorMessage.contains('Connection timeout')) {
+        errorMessage = 'Время ожидания истекло. Проверьте интернет.';
+      } else if (errorMessage.contains('Cannot connect')) {
+        errorMessage = 'Не удается подключиться к серверу';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text(errorMessage)),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isRegistering = false);
+      }
+    }
   }
 
   Widget _buildSectionHeader(String number, String title, bool isCompleted) {

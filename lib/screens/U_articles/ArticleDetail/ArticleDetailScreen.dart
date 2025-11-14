@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../models/article_model.dart';
+import '../../../services/directus_service.dart';
 
-/// Экран чтения статьи
+/// Экран чтения статьи - интеграция с Directus
 class ArticleDetailScreen extends StatefulWidget {
-  final String title;
+  final String slug;
+  final String? title; // Для превью в AppBar
   final String? imageUrl;
   final String? category;
   final int? readTime;
 
   const ArticleDetailScreen({
     super.key,
-    required this.title,
+    required this.slug,
+    this.title,
     this.imageUrl,
     this.category,
     this.readTime,
@@ -22,7 +27,12 @@ class ArticleDetailScreen extends StatefulWidget {
 }
 
 class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
+  final DirectusService _directusService = DirectusService();
   final ScrollController _scrollController = ScrollController();
+
+  ArticleModel? _article;
+  bool _isLoading = true;
+  String? _errorMessage;
   bool _isBookmarked = false;
   bool _showTitle = false;
 
@@ -30,6 +40,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadArticle();
   }
 
   @override
@@ -47,126 +58,81 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     }
   }
 
+  Future<void> _loadArticle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final article = await _directusService.getArticleBySlug(widget.slug);
+
+      if (article == null) {
+        setState(() {
+          _errorMessage = 'Статья не найдена';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _article = article;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // App Bar с изображением
-          _buildSliverAppBar(),
-
-          // Контент статьи
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Заголовок и метаданные
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Категория
-                      if (widget.category != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            widget.category!,
-                            style: AppTextStyles.body2.copyWith(
-                              fontSize: 12,
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-
-                      const SizedBox(height: 16),
-
-                      // Заголовок
-                      Text(
-                        widget.title,
-                        style: AppTextStyles.h1.copyWith(
-                          fontSize: 28,
-                          height: 1.3,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Метаданные
-                      Row(
-                        children: [
-                          // Время чтения
-                          if (widget.readTime != null) ...[
-                            const Icon(
-                              Icons.access_time,
-                              size: 16,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${widget.readTime} мин',
-                              style: AppTextStyles.body2.copyWith(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                          ],
-
-                          // Дата публикации
-                          const Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '15 октября 2024',
-                            style: AppTextStyles.body2.copyWith(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Divider(height: 32),
-
-                // Контент статьи
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildArticleContent(),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Похожие статьи
-                _buildRelatedArticles(),
-
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
-        ],
-      ),
+      body: _buildBody(),
     );
   }
 
-  // Sliver App Bar с изображением
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return _buildErrorState();
+    }
+
+    if (_article == null) {
+      return _buildNotFoundState();
+    }
+
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        _buildSliverAppBar(),
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildArticleHeader(),
+              const Divider(height: 32),
+              _buildArticleContent(),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSliverAppBar() {
+    final imageUrl = _article?.imageUrl ?? widget.imageUrl;
+    final title = _article?.title ?? widget.title ?? 'Статья';
+
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
@@ -228,7 +194,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       flexibleSpace: FlexibleSpaceBar(
         title: _showTitle
             ? Text(
-                widget.title,
+                title,
                 style: AppTextStyles.h3.copyWith(
                   fontSize: 16,
                   color: Colors.white,
@@ -240,10 +206,9 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Изображение статьи
-            if (widget.imageUrl != null)
+            if (imageUrl != null)
               Image.network(
-                widget.imageUrl!,
+                imageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return _buildPlaceholderImage();
@@ -251,8 +216,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               )
             else
               _buildPlaceholderImage(),
-
-            // Градиент снизу
             Positioned(
               bottom: 0,
               left: 0,
@@ -274,7 +237,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
-  // Placeholder для изображения
   Widget _buildPlaceholderImage() {
     return Container(
       color: AppColors.primary.withOpacity(0.1),
@@ -284,317 +246,204 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     );
   }
 
-  // Контент статьи
-  Widget _buildArticleContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Вступление
-        Text(
-          'Грусть — это естественная эмоция, которую испытывает каждый человек. '
-          'Она может возникать по разным причинам: расставание, неудачи, потеря близких. '
-          'Но важно понимать, что грусть — это не слабость, а нормальная реакция на жизненные ситуации.',
-          style: AppTextStyles.body1.copyWith(
-            fontSize: 17,
-            height: 1.6,
-            color: AppColors.textSecondary,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Основной контент
-        _buildSectionTitle('Почему важно проживать грусть?'),
-        const SizedBox(height: 12),
-        _buildParagraph(
-          'Многие люди стараются подавить грусть, отвлечься от неё или притвориться, '
-          'что всё в порядке. Однако подавленные эмоции имеют свойство накапливаться '
-          'и проявляться позже в виде стресса, тревоги или даже депрессии.',
-        ),
-        const SizedBox(height: 16),
-        _buildParagraph(
-          'Проживание грусти означает признание и принятие этой эмоции. '
-          'Это не значит, что нужно погружаться в негатив, но важно дать себе право '
-          'чувствовать то, что вы чувствуете.',
-        ),
-
-        const SizedBox(height: 32),
-
-        _buildSectionTitle('Как прожить грусть с пользой?'),
-        const SizedBox(height: 16),
-
-        // Список советов
-        _buildTipItem(
-          '1',
-          'Признайте свои чувства',
-          'Не пытайтесь убедить себя, что всё хорошо, если это не так. '
-              'Скажите себе: "Да, мне грустно, и это нормально".',
-        ),
-
-        _buildTipItem(
-          '2',
-          'Выражайте эмоции',
-          'Плач — это естественный способ освобождения от накопившихся эмоций. '
-              'Не стесняйтесь плакать, если чувствуете в этом потребность.',
-        ),
-
-        _buildTipItem(
-          '3',
-          'Ведите дневник',
-          'Записывайте свои мысли и чувства. Это помогает лучше понять себя '
-              'и осознать причины грусти.',
-        ),
-
-        _buildTipItem(
-          '4',
-          'Поговорите с кем-то',
-          'Делитесь своими переживаниями с близкими людьми или психологом. '
-              'Иногда просто быть услышанным уже помогает.',
-        ),
-
-        _buildTipItem(
-          '5',
-          'Будьте терпеливы',
-          'Грусть проходит не сразу. Дайте себе время на восстановление '
-              'и не торопите события.',
-        ),
-
-        const SizedBox(height: 32),
-
-        _buildSectionTitle('Когда стоит обратиться за помощью?'),
-        const SizedBox(height: 12),
-        _buildParagraph(
-          'Если грусть длится больше двух недель, мешает повседневной жизни, '
-          'сопровождается потерей интереса ко всему или мыслями о самоповреждении, '
-          'важно обратиться к специалисту. Психолог или психотерапевт помогут вам '
-          'разобраться в ситуации и найти выход.',
-        ),
-
-        const SizedBox(height: 24),
-
-        // Важное замечание
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppColors.primary.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.lightbulb_outline, color: AppColors.primary, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Важно помнить',
-                      style: AppTextStyles.h3.copyWith(
-                        fontSize: 16,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Грусть — это временное состояние. Проживая её осознанно, '
-                      'вы делаете важный шаг к эмоциональному здоровью и личностному росту.',
-                      style: AppTextStyles.body1.copyWith(
-                        fontSize: 14,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Заголовок секции
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.h2.copyWith(fontSize: 22, height: 1.3),
-    );
-  }
-
-  // Параграф текста
-  Widget _buildParagraph(String text) {
-    return Text(
-      text,
-      style: AppTextStyles.body1.copyWith(
-        fontSize: 16,
-        height: 1.7,
-        color: AppColors.textPrimary,
-      ),
-    );
-  }
-
-  // Пункт совета
-  Widget _buildTipItem(String number, String title, String description) {
+  Widget _buildArticleHeader() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
+      padding: const EdgeInsets.all(20),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
+          // Категория
+          if (_article!.category.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Text(
-                number,
-                style: AppTextStyles.h3.copyWith(
-                  fontSize: 18,
-                  color: Colors.white,
+                _article!.categoryDisplayName,
+                style: AppTextStyles.body2.copyWith(
+                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
+
+          const SizedBox(height: 16),
+
+          // Заголовок
+          Text(
+            _article!.title,
+            style: AppTextStyles.h1.copyWith(fontSize: 28, height: 1.3),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.h3.copyWith(fontSize: 17)),
-                const SizedBox(height: 6),
+
+          const SizedBox(height: 16),
+
+          // Метаданные
+          Row(
+            children: [
+              if (_article!.readTime != null) ...[
+                const Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
                 Text(
-                  description,
-                  style: AppTextStyles.body1.copyWith(
-                    fontSize: 15,
-                    height: 1.6,
+                  '${_article!.readTime} мин',
+                  style: AppTextStyles.body2.copyWith(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+              ],
+              if (_article!.createdAt != null) ...[
+                const Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _formatDate(_article!.createdAt!),
+                  style: AppTextStyles.body2.copyWith(
+                    fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
                 ),
               ],
-            ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // Похожие статьи
-  Widget _buildRelatedArticles() {
-    final articles = [
-      {
-        'title': 'Что делать, когда нет сил',
-        'category': 'Самопомощь',
-        'time': 4,
-      },
-      {
-        'title': 'Техники борьбы со стрессом',
-        'category': 'Практики',
-        'time': 6,
-      },
-      {'title': 'Как наладить режим сна', 'category': 'Здоровье', 'time': 5},
-    ];
+  Widget _buildArticleContent() {
+    if (_article!.content == null || _article!.content!.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(
+          _article!.excerpt ?? 'Содержимое статьи отсутствует.',
+          style: AppTextStyles.body1.copyWith(fontSize: 16, height: 1.7),
+        ),
+      );
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'Похожие статьи',
-            style: AppTextStyles.h3.copyWith(fontSize: 20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Html(
+        data: _article!.content!,
+        style: {
+          "body": Style(
+            margin: Margins.zero,
+            padding: HtmlPaddings.zero,
+            fontSize: FontSize(16),
+            lineHeight: LineHeight.number(1.7),
+            color: AppColors.textPrimary,
+            fontFamily: 'Manrope',
           ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 140,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: articles.length,
-            itemBuilder: (context, index) {
-              final article = articles[index];
-              return Container(
-                width: 280,
-                margin: EdgeInsets.only(
-                  right: index < articles.length - 1 ? 12 : 0,
-                ),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBackground,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.shadow.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        article['category'] as String,
-                        style: AppTextStyles.body2.copyWith(
-                          fontSize: 11,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      article['title'] as String,
-                      style: AppTextStyles.h3.copyWith(fontSize: 16),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.access_time,
-                          size: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${article['time']} мин',
-                          style: AppTextStyles.body2.copyWith(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
+          "h1": Style(
+            fontSize: FontSize(24),
+            fontWeight: FontWeight.w700,
+            margin: Margins.only(top: 24, bottom: 16),
           ),
-        ),
-      ],
+          "h2": Style(
+            fontSize: FontSize(22),
+            fontWeight: FontWeight.w600,
+            margin: Margins.only(top: 20, bottom: 12),
+          ),
+          "h3": Style(
+            fontSize: FontSize(20),
+            fontWeight: FontWeight.w600,
+            margin: Margins.only(top: 16, bottom: 10),
+          ),
+          "p": Style(margin: Margins.only(bottom: 16)),
+          "ul": Style(margin: Margins.only(bottom: 16, left: 20)),
+          "ol": Style(margin: Margins.only(bottom: 16, left: 20)),
+          "li": Style(margin: Margins.only(bottom: 8)),
+          "blockquote": Style(
+            border: Border(
+              left: BorderSide(color: AppColors.primary, width: 4),
+            ),
+            margin: Margins.symmetric(vertical: 16),
+            padding: HtmlPaddings.only(left: 16),
+            backgroundColor: AppColors.primary.withOpacity(0.05),
+          ),
+          "code": Style(
+            backgroundColor: AppColors.inputBorder.withOpacity(0.3),
+            padding: HtmlPaddings.symmetric(horizontal: 6, vertical: 2),
+            fontFamily: 'monospace',
+          ),
+        },
+      ),
     );
   }
 
-  // Поделиться статьей
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              'Ошибка загрузки',
+              style: AppTextStyles.h3.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? 'Неизвестная ошибка',
+              style: AppTextStyles.body2.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadArticle,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Повторить'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotFoundState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.article_outlined,
+              size: 64,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Статья не найдена',
+              style: AppTextStyles.h3.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Назад'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _shareArticle() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -604,5 +453,23 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'января',
+      'февраля',
+      'марта',
+      'апреля',
+      'мая',
+      'июня',
+      'июля',
+      'августа',
+      'сентября',
+      'октября',
+      'ноября',
+      'декабря',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }

@@ -24,6 +24,13 @@ class RegistrationService {
       if (e.response?.data != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to send code');
       }
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw Exception('Connection timeout. Please check your internet.');
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        throw Exception('No internet connection');
+      }
       throw Exception('Network error: ${e.message}');
     }
   }
@@ -50,9 +57,25 @@ class RegistrationService {
   }
 
   /// Регистрация пользователя
+  ///
+  /// Принимает данные из RegistrationProvider и отправляет на backend
   Future<UserModel> register(Map<String, dynamic> data) async {
     try {
+      // Форматируем дату рождения для backend (YYYY-MM-DD)
+      if (data['dateOfBirth'] is DateTime) {
+        data['dateOfBirth'] = (data['dateOfBirth'] as DateTime)
+            .toIso8601String()
+            .split('T')[0];
+      }
+
+      // Убираем null значения
+      data.removeWhere((key, value) => value == null);
+
+      print('📤 Registration request: ${data.keys}');
+
       final response = await _dio.post(ApiEndpoints.register, data: data);
+
+      print('📥 Registration response: ${response.statusCode}');
 
       if (response.data['success'] == true) {
         return UserModel.fromJson(response.data['data']);
@@ -60,10 +83,25 @@ class RegistrationService {
         throw Exception(response.data['message'] ?? 'Registration failed');
       }
     } on DioException catch (e) {
+      print('❌ Registration error: ${e.response?.data}');
+
       if (e.response?.data != null) {
-        throw Exception(e.response!.data['message'] ?? 'Registration failed');
+        final message = e.response!.data['message'] ?? 'Registration failed';
+        throw Exception(message);
       }
+
+      if (e.type == DioExceptionType.connectionTimeout) {
+        throw Exception('Connection timeout. Please try again.');
+      }
+
+      if (e.type == DioExceptionType.connectionError) {
+        throw Exception('Cannot connect to server. Check your internet.');
+      }
+
       throw Exception('Network error: ${e.message}');
+    } catch (e) {
+      print('❌ Unexpected error: $e');
+      throw Exception('Registration failed: ${e.toString()}');
     }
   }
 }

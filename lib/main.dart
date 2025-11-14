@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -9,18 +10,23 @@ import 'screens/splash/splash_screen.dart';
 import 'screens/home/P_home_screen/P_home_screen.dart';
 import 'theme/app_colors.dart';
 
-void main() {
-  ApiClient.init();
 
-  WidgetsFlutterBinding.ensureInitialized();
+void main() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Ориентация только для мобильных
-  if (!kIsWeb) {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    // Тест подключения
+    try {
+      final dio = Dio();
+      final response = await dio.get('http://localhost:8080/api/auth/login');
+      print('✅ Backend доступен: ${response.statusCode}');
+    } catch (e) {
+      print('❌ Backend недоступен: $e');
+    }
+
+    ApiClient.init();
+    runApp(const BalancePsyApp());
   }
 
-  runApp(const BalancePsyApp());
-}
 
 class BalancePsyApp extends StatelessWidget {
   const BalancePsyApp({super.key});
