@@ -8,6 +8,7 @@ class UserModel {
   final String role;
   final String? gender;
   final List<String>? interests;
+  final String? registrationGoal;
   final bool isActive;
   final bool emailVerified;
 
@@ -21,6 +22,7 @@ class UserModel {
     required this.role,
     this.gender,
     this.interests,
+    this.registrationGoal,
     required this.isActive,
     required this.emailVerified,
   });
@@ -36,6 +38,7 @@ class UserModel {
       role: json['role'] as String,
       gender: json['gender'] as String?,
       interests: (json['interests'] as List?)?.cast<String>(),
+      registrationGoal: json['registrationGoal'] as String?,
       isActive: json['isActive'] as bool,
       emailVerified: json['emailVerified'] as bool,
     );
@@ -52,6 +55,7 @@ class UserModel {
       'role': role,
       'gender': gender,
       'interests': interests,
+      'registrationGoal': registrationGoal,
       'isActive': isActive,
       'emailVerified': emailVerified,
     };
