@@ -5,6 +5,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../providers/auth_provider.dart';
+import '../home/P_home_screen/P_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,13 +46,20 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await authProvider.login(email, password);
 
     if (success) {
-      // Успешный вход
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+      final user = authProvider.user;
+
+      if (user?.role == 'PSYCHOLOGIST') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PsychologistHomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
     } else {
-      // Ошибка
       _showError(authProvider.errorMessage ?? 'Ошибка входа');
     }
   }

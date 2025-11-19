@@ -4,36 +4,69 @@ import '../core/constants/app_constants.dart';
 import '../core/storage/token_storage.dart';
 import '../models/login_response.dart';
 import '../models/user_model.dart';
+import '../models/profile_response.dart';
 
 class AuthService {
   final Dio _dio = ApiClient.instance;
 
-  // ✅ Правильный POST-запрос для логина
+  /// ✅ Регистрация клиента
+  Future<UserModel> registerClient(Map<String, dynamic> data) async {
+    try {
+      print('📤 Registering CLIENT: ${data['email']}');
+
+      final response = await _dio.post('/api/auth/register/client', data: data);
+
+      print('✅ Client registered: ${response.statusCode}');
+
+      if (response.data['success'] == true) {
+        return UserModel.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Registration failed');
+      }
+    } on DioException catch (e) {
+      print('❌ Client registration error: ${e.response?.data}');
+      throw Exception(
+        e.response?.data['message'] ?? 'Failed to register client',
+      );
+    }
+  }
+
+  /// ✅ Регистрация психолога
+  Future<UserModel> registerPsychologist(Map<String, dynamic> data) async {
+    try {
+      print('📤 Registering PSYCHOLOGIST: ${data['email']}');
+
+      final response = await _dio.post(
+        '/api/auth/register/psychologist',
+        data: data,
+      );
+
+      print('✅ Psychologist registered: ${response.statusCode}');
+
+      if (response.data['success'] == true) {
+        return UserModel.fromJson(response.data['data']);
+      } else {
+        throw Exception(response.data['message'] ?? 'Registration failed');
+      }
+    } on DioException catch (e) {
+      print('❌ Psychologist registration error: ${e.response?.data}');
+      throw Exception(
+        e.response?.data['message'] ?? 'Failed to register psychologist',
+      );
+    }
+  }
+
+  /// ✅ Логин (для CLIENT и PSYCHOLOGIST)
   Future<LoginResponse> login(String email, String password) async {
     try {
-      print(
-        '🔵 Отправка запроса на: ${AppConstants.baseUrl}${ApiEndpoints.login}',
-      );
-      print('📧 Email: $email');
+      print('🔵 Logging in: $email');
 
-      // ✅ КРИТИЧЕСКИ ВАЖНО: используем POST, не GET!
       final response = await _dio.post(
         ApiEndpoints.login, // '/api/auth/login'
         data: {'email': email, 'password': password},
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          validateStatus: (status) {
-            // Позволяем обработку даже неуспешных статусов
-            return status != null && status < 500;
-          },
-        ),
       );
 
-      print('✅ Ответ сервера: ${response.statusCode}');
-      print('📦 Данные: ${response.data}');
+      print('✅ Login response: ${response.statusCode}');
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final loginResponse = LoginResponse.fromJson(response.data['data']);
@@ -42,60 +75,48 @@ class AuthService {
         await TokenStorage.saveToken(loginResponse.token);
         await TokenStorage.saveEmail(email);
 
-        print('🎉 Логин успешен, токен сохранен');
+        print('🎉 Login successful, token saved');
         return loginResponse;
       } else {
-        final errorMessage = response.data['message'] ?? 'Login failed';
-        print('❌ Ошибка логина: $errorMessage');
-        throw Exception(errorMessage);
+        throw Exception(response.data['message'] ?? 'Login failed');
       }
     } on DioException catch (e) {
-      print('❌ DioException: ${e.type}');
-      print('❌ Статус: ${e.response?.statusCode}');
-      print('❌ Сообщение: ${e.message}');
-      print('❌ Данные ответа: ${e.response?.data}');
-
-      if (e.response?.statusCode == 405) {
-        throw Exception(
-          'Метод не поддерживается. Проверьте, что используется POST.',
-        );
-      }
-
-      if (e.response?.data != null) {
-        throw Exception(e.response!.data['message'] ?? 'Login failed');
-      }
-
-      if (e.type == DioExceptionType.connectionTimeout) {
-        throw Exception('Тайм-аут соединения. Проверьте IP-адрес сервера.');
-      }
-
-      if (e.type == DioExceptionType.connectionError) {
-        throw Exception(
-          'Не удается подключиться к серверу. Проверьте:\n'
-          '1. IP-адрес: ${AppConstants.baseUrl}\n'
-          '2. Spring Boot запущен?\n'
-          '3. iPhone и Mac в одной Wi-Fi сети?',
-        );
-      }
-
-      throw Exception('Network error: ${e.message}');
-    } catch (e) {
-      print('❌ Неизвестная ошибка: $e');
-      throw Exception('Unexpected error: $e');
+      print('❌ Login error: ${e.response?.data}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to login');
     }
   }
 
-  // Логаут
+  /// ✅ Получить расширенный профиль (с psychologistProfile для PSYCHOLOGIST)
+  Future<ProfileResponse> getProfile() async {
+    try {
+      print('🔵 Getting profile...');
+
+      final response = await _dio.get('/api/auth/profile/me');
+
+      print('✅ Profile response: ${response.statusCode}');
+
+      if (response.data['success'] == true) {
+        return ProfileResponse.fromJson(response.data['data']);
+      } else {
+        throw Exception('Failed to load profile');
+      }
+    } on DioException catch (e) {
+      print('❌ Profile error: ${e.response?.data}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to load profile');
+    }
+  }
+
+  /// Логаут
   Future<void> logout() async {
     await TokenStorage.clearAll();
   }
 
-  // Проверка авторизации
+  /// Проверка авторизации
   Future<bool> isAuthenticated() async {
     return await TokenStorage.hasToken();
   }
 
-  // Получить текущего пользователя
+  /// Получить текущего пользователя (простая версия без psychologistProfile)
   Future<UserModel> getCurrentUser() async {
     try {
       final response = await _dio.get(ApiEndpoints.userMe);

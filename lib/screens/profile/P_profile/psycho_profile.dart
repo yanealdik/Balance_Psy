@@ -6,6 +6,7 @@ import '../../../widgets/custom_button.dart';
 import '../../../widgets/psychologist/profile/stat_item_widget.dart';
 import '../../../widgets/psychologist/profile/schedule_item_widget.dart';
 import '../../../widgets/psychologist/profile/action_item_widget.dart';
+import '../../../services/auth_service.dart';
 import '../FAQ/faq_screen.dart';
 import '../edit/P_edit_screen.dart';
 import '../setting/setting_screen.dart';
@@ -20,11 +21,57 @@ class PsychologistProfileScreen extends StatefulWidget {
 }
 
 class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
+  final AuthService _authService = AuthService();
   bool notificationsEnabled = true;
   bool darkModeEnabled = false;
+  double _rating = 0;
+  int _totalSessions = 0;
+  int _patientsCount = 0;
+  String _fullName = '';
+  String _specialization = '';
+  String? _avatarUrl;
+  String _roleDescription = 'Психолог BalancePsy';
+  bool _isLoadingProfile = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() => _isLoadingProfile = true);
+    try {
+      final profile = await _authService.getProfile();
+
+      if (!mounted) return;
+
+      setState(() {
+        _fullName = profile.fullName;
+        _avatarUrl = profile.avatarUrl;
+        _roleDescription = profile.role == 'PSYCHOLOGIST'
+            ? 'Психолог BalancePsy'
+            : profile.role;
+        _specialization = profile.psychologistProfile?.specialization ?? '';
+        _rating = profile.psychologistProfile?.rating ?? 0;
+        _totalSessions = profile.psychologistProfile?.totalSessions ?? 0;
+        _patientsCount = profile.psychologistProfile?.reviewsCount ?? 0;
+        _isLoadingProfile = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error loading profile: $e');
+      if (!mounted) return;
+      setState(() => _isLoadingProfile = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ImageProvider avatarImage =
+        (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+        ? NetworkImage(_avatarUrl!)
+        : const AssetImage('assets/images/avatar/Galiya.png');
+
     return Material(
       color: AppColors.backgroundLight,
       child: SafeArea(
@@ -82,10 +129,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  image: const DecorationImage(
-                    image: AssetImage('assets/images/avatar/Galiya.png'),
-                    fit: BoxFit.cover,
-                  ),
+                  image: DecorationImage(image: avatarImage, fit: BoxFit.cover),
                   border: Border.all(
                     color: AppColors.primary.withOpacity(0.3),
                     width: 3,
@@ -109,7 +153,11 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Галия Аубакирова',
+                    _fullName.isNotEmpty
+                        ? _fullName
+                        : (_isLoadingProfile
+                              ? 'Загрузка...'
+                              : 'Имя не указано'),
                     style: AppTextStyles.h3.copyWith(fontSize: 18),
                   ),
                 ],
@@ -118,7 +166,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
               const SizedBox(height: 4),
 
               Text(
-                'Психолог BalancePsy',
+                _roleDescription,
                 style: AppTextStyles.body2.copyWith(fontSize: 14),
               ),
 
@@ -135,7 +183,9 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Когнитивно-поведенческая терапия',
+                  _specialization.isNotEmpty
+                      ? _specialization
+                      : 'Специализация не указана',
                   style: AppTextStyles.body2.copyWith(
                     fontSize: 12,
                     color: AppColors.primary,
@@ -197,7 +247,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                         children: [
                           StatItemWidget(
                             title: 'Пациенты',
-                            value: '24',
+                            value: _patientsCount.toString(),
                             icon: Icons.people_outline,
                           ),
                           Container(
@@ -207,7 +257,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                           ),
                           StatItemWidget(
                             title: 'Сессии',
-                            value: '156',
+                            value: _totalSessions.toString(),
                             icon: Icons.event_note,
                           ),
                           Container(
@@ -217,7 +267,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
                           ),
                           StatItemWidget(
                             title: 'Рейтинг',
-                            value: '4.9',
+                            value: _rating.toStringAsFixed(1),
                             icon: Icons.star_outline,
                           ),
                         ],
