@@ -61,19 +61,25 @@ class RegistrationService {
   /// Принимает данные из RegistrationProvider и отправляет на backend
   Future<UserModel> register(Map<String, dynamic> data) async {
     try {
-      // Форматируем дату рождения для backend (YYYY-MM-DD)
+      // Форматируем дату рождения
       if (data['dateOfBirth'] is DateTime) {
         data['dateOfBirth'] = (data['dateOfBirth'] as DateTime)
             .toIso8601String()
             .split('T')[0];
       }
 
-      // Убираем null значения
       data.removeWhere((key, value) => value == null);
 
       print('📤 Registration request: ${data.keys}');
 
-      final response = await _dio.post(ApiEndpoints.register, data: data);
+      // 🔥 ИЗМЕНЕНО: Определяем endpoint в зависимости от роли
+      final endpoint = data.containsKey('specialization')
+          ? '/api/auth/register/psychologist' // Психолог
+          : '/api/auth/register/client'; // Клиент
+
+      print('🎯 Using endpoint: $endpoint');
+
+      final response = await _dio.post(endpoint, data: data);
 
       print('📥 Registration response: ${response.statusCode}');
 

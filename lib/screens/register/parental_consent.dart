@@ -91,10 +91,9 @@ class _ParentalConsentScreenState extends State<ParentalConsentScreen> {
     try {
       await _registrationService.sendVerificationCode(
         _emailController.text.trim(),
-        isParentEmail: true,
+        isParentEmail: true, // ← ВАЖНО: true для родителя
       );
 
-      // Сохраняем email родителя
       final regProvider = Provider.of<RegistrationProvider>(
         context,
         listen: false,
@@ -107,6 +106,8 @@ class _ParentalConsentScreenState extends State<ParentalConsentScreen> {
       });
 
       _startCountdown();
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -154,85 +155,85 @@ class _ParentalConsentScreenState extends State<ParentalConsentScreen> {
   }
 
   Future<void> _verifyCode() async {
+  setState(() {
+    _errorMessage = null;
+  });
+
+  if (_codeController.text.trim().isEmpty) {
     setState(() {
-      _errorMessage = null;
+      _errorMessage = 'Введите код подтверждения';
     });
+    return;
+  }
 
-    if (_codeController.text.trim().isEmpty) {
+  if (_codeController.text.trim().length != 6) {
+    setState(() {
+      _errorMessage = 'Код должен содержать 6 цифр';
+    });
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    final verified = await _registrationService.verifyCode(
+      _emailController.text.trim(),
+      _codeController.text.trim(),
+      isParentEmail: true, // ← ВАЖНО: true для родителя
+    );
+
+    if (verified) {
+      final regProvider = Provider.of<RegistrationProvider>(
+        context,
+        listen: false,
+      );
+      regProvider.setParentEmailVerified(true);
+
       setState(() {
-        _errorMessage = 'Введите код подтверждения';
+        _isVerified = true;
       });
-      return;
-    }
 
-    if (_codeController.text.trim().length != 6) {
-      setState(() {
-        _errorMessage = 'Код должен содержать 6 цифр';
-      });
-      return;
-    }
+      if (!mounted) return;
 
-    setState(() => _isLoading = true);
-
-    try {
-      final verified = await _registrationService.verifyCode(
-        _emailController.text.trim(),
-        _codeController.text.trim(),
-        isParentEmail: true,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.verified, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Согласие родителя подтверждено!'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       );
 
-      if (verified) {
-        // Сохраняем статус верификации
-        final regProvider = Provider.of<RegistrationProvider>(
-          context,
-          listen: false,
-        );
-        regProvider.setParentEmailVerified(true);
-
-        setState(() {
-          _isVerified = true;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.verified, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Согласие родителя подтверждено!'),
-              ],
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const OnboardingStep5Screen(),
             ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-
-        // Переход на следующий шаг через 1.5 секунды
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const OnboardingStep5Screen(),
-              ),
-            );
-          }
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Неверный код подтверждения';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = ErrorHandler.getErrorMessage(e);
+          );
+        }
       });
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+      setState(() {
+        _errorMessage = 'Неверный код подтверждения';
+      });
     }
+  } catch (e) {
+    setState(() {
+      _errorMessage = ErrorHandler.getErrorMessage(e);
+    });
+  } finally {
+    setState(() => _isLoading = false);
+  }
   }
 
   @override

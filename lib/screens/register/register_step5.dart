@@ -12,6 +12,8 @@ import '../../widgets/custom_text_field.dart';
 import '../../widgets/step_indicator.dart';
 import '../../widgets/back_button.dart';
 import '../success/success_screen.dart';
+import '../../services/registration_service.dart';
+import '../../core/utils/error_handler.dart';
 
 /// Экран онбординга Шаг 5 - Email и Пароль
 class OnboardingStep5Screen extends StatefulWidget {
@@ -25,6 +27,7 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final RegistrationService _registrationService = RegistrationService();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
@@ -68,40 +71,62 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
     });
   }
 
-  void _sendCode() {
+  Future<void> _sendCode() async {
     if (!_isEmailValid) {
       _checkEmail();
       return;
     }
 
-    // Имитация отправки кода (без backend)
     setState(() {
-      _isCodeSent = true;
-      _countdown = 60;
+      _emailError = null;
+      _isCodeSent = false; // Сбрасываем состояние
     });
 
-    _startCountdown();
+    try {
+      print('📤 Sending verification code to: ${_emailController.text.trim()}');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Код: 123456 (для теста)',
-                style: TextStyle(fontSize: 14),
+      await _registrationService.sendVerificationCode(
+        _emailController.text.trim(),
+        isParentEmail: false,
+      );
+
+      setState(() {
+        _isCodeSent = true;
+        _countdown = 60;
+      });
+
+      _startCountdown();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Код отправлен на ${_emailController.text}',
+                  style: const TextStyle(fontSize: 14),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 5), // Показываем дольше
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+      );
+    } catch (e) {
+      print('❌ Send code error: $e');
+      setState(() {
+        _emailError = ErrorHandler.getErrorMessage(e);
+      });
+    }
   }
 
   void _startCountdown() {
@@ -117,7 +142,7 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
     });
   }
 
-  void _verifyCode() {
+  Future<void> _verifyCode() async {
     final code = _codeController.text.trim();
 
     if (code.isEmpty) {
@@ -134,33 +159,52 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
       return;
     }
 
-    // Для теста принимаем код "123456"
-    if (code != '123456') {
+    try {
+      print(
+        '📤 Verifying code: $code for email: ${_emailController.text.trim()}',
+      );
+
+      final verified = await _registrationService.verifyCode(
+        _emailController.text.trim(),
+        code,
+        isParentEmail: false,
+      );
+
+      if (verified) {
+        setState(() {
+          _isCodeVerified = true;
+          _codeError = null;
+        });
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.verified, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Email подтвержден!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      } else {
+        setState(() {
+          _codeError = 'Неверный код';
+        });
+      }
+    } catch (e) {
+      print('❌ Verify code error: $e');
       setState(() {
-        _codeError = 'Неверный код. Используйте: 123456';
+        _codeError = ErrorHandler.getErrorMessage(e);
       });
-      return;
     }
-
-    setState(() {
-      _isCodeVerified = true;
-      _codeError = null;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.verified, color: Colors.white),
-            SizedBox(width: 12),
-            Text('Email подтвержден!'),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
   void _validatePasswords() {

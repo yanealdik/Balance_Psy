@@ -3,7 +3,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/back_button.dart';
-import 'register_step1.dart';
+import 'role_selection_screen.dart';
 
 /// Экран соглашения пользователя перед регистрацией
 class AgreementScreen extends StatefulWidget {
@@ -253,7 +253,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const OnboardingStep1Screen(),
+                            builder: (context) => const RoleSelectionScreen(),
                           ),
                         );
                       }

@@ -42,7 +42,8 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
   Future<void> _loadProfile() async {
     setState(() => _isLoadingProfile = true);
     try {
-      final profile = await _authService.getProfile();
+      final authService = AuthService();
+      final profile = await authService.getProfile();
 
       if (!mounted) return;
 
@@ -52,10 +53,15 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
         _roleDescription = profile.role == 'PSYCHOLOGIST'
             ? 'Психолог BalancePsy'
             : profile.role;
-        _specialization = profile.psychologistProfile?.specialization ?? '';
-        _rating = profile.psychologistProfile?.rating ?? 0;
-        _totalSessions = profile.psychologistProfile?.totalSessions ?? 0;
-        _patientsCount = profile.psychologistProfile?.reviewsCount ?? 0;
+
+        if (profile.psychologistProfile != null) {
+          final psychProfile = profile.psychologistProfile!;
+          _specialization = psychProfile.specialization;
+          _rating = psychProfile.rating.toDouble();
+          _totalSessions = psychProfile.totalSessions;
+          _patientsCount = psychProfile.reviewsCount;
+        }
+
         _isLoadingProfile = false;
       });
     } catch (e) {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../models/user_model.dart';
+import '../../../services/auth_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_button.dart';
@@ -32,7 +34,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     setState(() => _isLoading = true);
     try {
-      final user = await _userService.getProfile();
+      final authService = AuthService();
+      final profile = await authService.getProfile(); // ← ProfileResponse
+
+      // Конвертируем ProfileResponse → UserModel
+      final user = UserModel(
+        userId: profile.userId,
+        email: profile.email,
+        fullName: profile.fullName,
+        phone: profile.phone,
+        dateOfBirth: profile.dateOfBirth,
+        avatarUrl: profile.avatarUrl,
+        role: profile.role,
+        gender: profile.gender,
+        interests: profile.interests,
+        registrationGoal: profile.registrationGoal,
+        isActive: profile.isActive,
+        emailVerified: profile.emailVerified,
+      );
+
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       authProvider.updateUser(user);
     } catch (e) {
