@@ -2,18 +2,18 @@ import 'package:balance_psy/screens/register/DiagnosticAfterReg/DiagnosticScreen
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import '../../core/utils/error_handler.dart';
-import '../../providers/registration_provider.dart';
-import '../../services/registration_service.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../widgets/step_indicator.dart';
-import '../../widgets/back_button.dart';
-import '../success/success_screen.dart';
-import '../../services/registration_service.dart';
-import '../../core/utils/error_handler.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../../providers/registration_provider.dart';
+import '../../../services/registration_service.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/step_indicator.dart';
+import '../../../widgets/back_button.dart';
+import '../../success/success_screen.dart';
+import '../../../services/registration_service.dart';
+import '../../../core/utils/error_handler.dart';
 
 /// Экран онбординга Шаг 5 - Email и Пароль
 class OnboardingStep5Screen extends StatefulWidget {

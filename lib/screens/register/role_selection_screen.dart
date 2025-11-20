@@ -3,7 +3,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/back_button.dart';
-import 'register_step1.dart';
+import 'user/register_step1.dart';
 import 'psychologist/psychologist_register_flow.dart';
 
 class RoleSelectionScreen extends StatelessWidget {

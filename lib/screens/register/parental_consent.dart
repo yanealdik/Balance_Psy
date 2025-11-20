@@ -9,7 +9,7 @@ import '../../widgets/back_button.dart';
 import '../../providers/registration_provider.dart';
 import '../../services/registration_service.dart';
 import '../../core/utils/error_handler.dart';
-import 'register_step5.dart';
+import 'user/register_step5.dart';
 
 /// Экран родительского согласия для пользователей младше 18 лет
 class ParentalConsentScreen extends StatefulWidget {

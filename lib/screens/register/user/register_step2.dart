@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Добавили
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../widgets/step_indicator.dart';
-import '../../widgets/back_button.dart';
-import '../../providers/registration_provider.dart'; // Добавили
-import '../register/register_step3.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/step_indicator.dart';
+import '../../../widgets/back_button.dart';
+import '../../../providers/registration_provider.dart'; // Добавили
+import 'register_step3.dart';
 
 class OnboardingStep2Screen extends StatefulWidget {
   const OnboardingStep2Screen({super.key});

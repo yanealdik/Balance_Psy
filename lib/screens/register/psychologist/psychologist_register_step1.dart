@@ -1,49 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart'; // Добавили
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/step_indicator.dart';
-import '../../widgets/back_button.dart';
-import '../../providers/registration_provider.dart'; // Добавили
-import '../register/register_step5.dart';
-import '../register/parental_consent.dart';
+import 'package:provider/provider.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/custom_text_field.dart';
+import '../../../widgets/step_indicator.dart';
+import '../../../widgets/back_button.dart';
+import '../../../providers/psychologist_registration_provider.dart';
+import 'psychologist_register_step2.dart';
 
-class OnboardingStep4Screen extends StatefulWidget {
-  const OnboardingStep4Screen({super.key});
+/// Шаг 1: Личные данные психолога
+class PsychologistRegisterStep1 extends StatefulWidget {
+  const PsychologistRegisterStep1({super.key});
+
   @override
-  State<OnboardingStep4Screen> createState() => _OnboardingStep4ScreenState();
+  State<PsychologistRegisterStep1> createState() =>
+      _PsychologistRegisterStep1State();
 }
 
-class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
+class _PsychologistRegisterStep1State extends State<PsychologistRegisterStep1> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _dayController = TextEditingController();
   final TextEditingController _monthController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
   final FocusNode _dayFocus = FocusNode();
   final FocusNode _monthFocus = FocusNode();
   final FocusNode _yearFocus = FocusNode();
-  String? errorMessage;
+
+  String? _gender;
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
-    // Загружаем сохранённые данные
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final regProvider = Provider.of<RegistrationProvider>(
+      final provider = Provider.of<PsychologistRegistrationProvider>(
         context,
         listen: false,
       );
-      if (regProvider.dateOfBirth != null) {
-        final date = regProvider.dateOfBirth!;
+      if (provider.fullName != null) {
+        _nameController.text = provider.fullName!;
+      }
+      if (provider.phone != null) {
+        _phoneController.text = provider.phone!;
+      }
+      if (provider.dateOfBirth != null) {
+        final date = provider.dateOfBirth!;
         _dayController.text = date.day.toString().padLeft(2, '0');
         _monthController.text = date.month.toString().padLeft(2, '0');
         _yearController.text = date.year.toString();
+      }
+      if (provider.gender != null) {
+        setState(() => _gender = provider.gender);
       }
     });
   }
 
   @override
   void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
     _dayController.dispose();
     _monthController.dispose();
     _yearController.dispose();
@@ -75,68 +93,79 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
   }
 
   void _validateAndProceed() {
-    setState(() {
-      errorMessage = null;
-    });
+    setState(() => _errorMessage = null);
+
+    // Проверка имени
+    if (_nameController.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Введите ФИО');
+      return;
+    }
+
+    if (_nameController.text.trim().length < 2) {
+      setState(() => _errorMessage = 'ФИО должно содержать минимум 2 символа');
+      return;
+    }
+
+    // Проверка даты рождения
     if (_dayController.text.isEmpty ||
         _monthController.text.isEmpty ||
         _yearController.text.isEmpty) {
-      setState(() {
-        errorMessage = 'Пожалуйста, введите полную дату рождения';
-      });
+      setState(() => _errorMessage = 'Введите дату рождения');
       return;
     }
+
     final day = int.tryParse(_dayController.text);
     final month = int.tryParse(_monthController.text);
     final year = int.tryParse(_yearController.text);
+
     if (day == null || month == null || year == null) {
-      setState(() {
-        errorMessage = 'Введите корректную дату';
-      });
+      setState(() => _errorMessage = 'Введите корректную дату');
       return;
     }
-    if (year < 1900 || year > DateTime.now().year) {
-      setState(() {
-        errorMessage = 'Введите корректный год';
-      });
+
+    if (year < 1950 || year > DateTime.now().year - 21) {
+      setState(() => _errorMessage = 'Проверьте год рождения');
       return;
     }
+
     if (!_isValidDate(day, month, year)) {
+      setState(() => _errorMessage = 'Такой даты не существует');
+      return;
+    }
+
+    final age = _calculateAge(day, month, year);
+
+    // ВАЖНО: Психологи должны быть 21+
+    if (age < 21) {
       setState(() {
-        errorMessage = 'Такой даты не существует';
+        _errorMessage = 'Для регистрации психологом необходимо быть старше 21 года';
       });
       return;
     }
-    final age = _calculateAge(day, month, year);
-    if (age < 13) {
-      setState(() {
-        errorMessage = 'Минимальный возраст для регистрации - 13 лет';
-      });
-      return;
-    } // Сохраняем дату рождения и возраст в provider
-    final regProvider = Provider.of<RegistrationProvider>(
+
+    // Сохраняем данные
+    final provider = Provider.of<PsychologistRegistrationProvider>(
       context,
       listen: false,
     );
-    final birthDate = DateTime(year, month, day);
-    regProvider.setDateOfBirth(
-      birthDate,
-      age,
-    ); // Если возраст меньше 18, показываем экран согласия родителей
-    if (age < 18) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ParentalConsentScreen(age: age),
-        ),
-      );
-    } else {
-      // Если 18+, переходим к следующему шагу
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const OnboardingStep5Screen()),
-      );
-    }
+
+    provider.setPersonalInfo(
+      fullName: _nameController.text.trim(),
+      dateOfBirth: DateTime(year, month, day),
+      age: age,
+      gender: _gender,
+      phone: _phoneController.text.trim().isEmpty
+          ? null
+          : _phoneController.text.trim(),
+    );
+
+    // Переход к следующему шагу
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const PsychologistRegisterStep2(),
+      ),
+    );
   }
 
   @override
@@ -146,36 +175,74 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Шапка
             const Padding(
               padding: EdgeInsets.all(16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   CustomBackButton(),
-                  StepIndicator(currentStep: 4, totalSteps: 5),
+                  StepIndicator(currentStep: 1, totalSteps: 4),
                 ],
               ),
             ),
+
+            // Контент
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
+
                     Text(
-                      'Ваша дата рождения?',
+                      'Личные данные',
                       style: AppTextStyles.h2.copyWith(fontSize: 26),
-                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 12),
+
+                    const SizedBox(height: 8),
+
                     Text(
-                      'Это поможет нам персонализировать ваш опыт',
+                      'Расскажите о себе, чтобы мы могли создать ваш профиль',
                       style: AppTextStyles.body2.copyWith(
                         color: AppColors.textSecondary,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 60),
+
+                    const SizedBox(height: 32),
+
+                    // ФИО
+                    Text(
+                      'Полное имя *',
+                      style: AppTextStyles.body1.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CustomTextField(
+                      controller: _nameController,
+                      hintText: 'Иванов Иван Иванович',
+                      prefixIcon: Icons.person_outline,
+                      enabled: true,
+                      maxLength: 255,
+                      onChanged: (value) {
+                        if (_errorMessage != null) {
+                          setState(() => _errorMessage = null);
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Дата рождения
+                    Text(
+                      'Дата рождения * (минимум 21 год)',
+                      style: AppTextStyles.body1.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -223,8 +290,51 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    if (errorMessage != null)
+
+                    const SizedBox(height: 24),
+
+                    // Телефон (необязательно)
+                    Text(
+                      'Телефон (необязательно)',
+                      style: AppTextStyles.body1.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CustomTextField(
+                      controller: _phoneController,
+                      hintText: '+7 (___) ___-__-__',
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      enabled: true,
+                      maxLength: 20,
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Пол (необязательно)
+                    Text(
+                      'Пол (необязательно)',
+                      style: AppTextStyles.body1.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildGenderButton('Мужской', 'male'),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildGenderButton('Женский', 'female'),
+                        ),
+                      ],
+                    ),
+
+                    // Ошибка
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 20),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -244,7 +354,7 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                errorMessage!,
+                                _errorMessage!,
                                 style: AppTextStyles.body2.copyWith(
                                   color: Colors.red,
                                 ),
@@ -253,36 +363,15 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
                           ],
                         ),
                       ),
-                    const SizedBox(height: 40),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.info_outline,
-                            color: AppColors.primary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Пользователям младше 18 лет потребуется согласие родителей',
-                              style: AppTextStyles.body2.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
+
+            // Кнопка "Продолжить"
             Padding(
               padding: const EdgeInsets.all(24),
               child: CustomButton(
@@ -340,15 +429,41 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
           if (value.length == maxLength && !isLast && nextFocus != null) {
             FocusScope.of(context).requestFocus(nextFocus);
           }
-          if (errorMessage != null) {
-            setState(() {
-              errorMessage = null;
-            });
+          if (_errorMessage != null) {
+            setState(() => _errorMessage = null);
           }
         },
-        onTap: () {
-          setState(() {});
-        },
+        onTap: () => setState(() {}),
+      ),
+    );
+  }
+
+  Widget _buildGenderButton(String label, String value) {
+    final isSelected = _gender == value;
+    return GestureDetector(
+      onTap: () => setState(() => _gender = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withOpacity(0.1)
+              : AppColors.inputBackground,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.inputBorder,
+            width: isSelected ? 2 : 1.5,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: AppTextStyles.body1.copyWith(
+              fontSize: 15,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
+        ),
       ),
     );
   }

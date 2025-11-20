@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart'; // Добавили
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../../widgets/custom_button.dart';
-import '../../widgets/step_indicator.dart';
-import '../../widgets/back_button.dart';
-import '../../providers/registration_provider.dart'; // Добавили
-import '../register/register_step4.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/step_indicator.dart';
+import '../../../widgets/back_button.dart';
+import '../../../providers/registration_provider.dart'; // Добавили
+import 'register_step4.dart';
 
 class OnboardingStep3Screen extends StatefulWidget {
   const OnboardingStep3Screen({super.key});
