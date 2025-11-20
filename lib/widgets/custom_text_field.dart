@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -12,14 +13,16 @@ class CustomTextField extends StatefulWidget {
   final TextInputType? keyboardType;
   final TextEditingController controller;
   final Function(String)? onChanged;
-  final bool enabled;
   final int? maxLength;
+  final bool enabled;
+  final bool? obscureText;
+  final Widget? suffixIcon;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CustomTextField({
     super.key,
     required this.hintText,
     required this.controller,
-    required this.enabled,
     this.prefixIcon,
     this.isPassword = false,
     this.showSuccess = false,
@@ -27,6 +30,10 @@ class CustomTextField extends StatefulWidget {
     this.keyboardType,
     this.onChanged,
     this.maxLength,
+    this.enabled = true,
+    this.obscureText,
+    this.suffixIcon,
+    this.inputFormatters,
   });
 
   @override
@@ -74,10 +81,11 @@ class _CustomTextFieldState extends State<CustomTextField> {
         controller: widget.controller,
         focusNode: _focusNode,
         enabled: widget.enabled,
-        obscureText: widget.isPassword,
+        obscureText: widget.obscureText ?? widget.isPassword,
         keyboardType: widget.keyboardType,
         style: AppTextStyles.input,
         maxLength: widget.maxLength,
+        inputFormatters: widget.inputFormatters,
         onChanged: widget.onChanged,
         decoration: InputDecoration(
           hintText: widget.hintText,
@@ -100,21 +108,23 @@ class _CustomTextFieldState extends State<CustomTextField> {
                   ),
                 )
               : null,
-          suffixIcon: widget.showSuccess
-              ? const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: Icon(Icons.check, color: AppColors.success, size: 24),
-                )
-              : widget.showEyeIcon
-              ? const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: Icon(
-                    Icons.visibility_off_outlined,
-                    color: AppColors.textTertiary,
-                    size: 24,
-                  ),
-                )
-              : null,
+          suffixIcon: widget.suffixIcon ??
+              (widget.showSuccess
+                  ? const Padding(
+                      padding: EdgeInsets.only(right: 12),
+                      child:
+                          Icon(Icons.check, color: AppColors.success, size: 24),
+                    )
+                  : widget.showEyeIcon
+                      ? const Padding(
+                          padding: EdgeInsets.only(right: 12),
+                          child: Icon(
+                            Icons.visibility_off_outlined,
+                            color: AppColors.textTertiary,
+                            size: 24,
+                          ),
+                        )
+                      : null),
         ),
       ),
     );
