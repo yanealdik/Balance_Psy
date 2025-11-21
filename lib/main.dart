@@ -1,32 +1,32 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'core/api/api_client.dart';
 import 'providers/auth_provider.dart';
 import 'providers/registration_provider.dart';
-import 'screens/splash/splash_screen.dart';
-import 'screens/home/P_home_screen/P_home_screen.dart';
+import 'providers/psychologist_registration_provider.dart';
+import 'screens/splash/splash_screen.dart'; // ✅ Добавлено
 import 'theme/app_colors.dart';
 
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    // Тест подключения
-    try {
-      final dio = Dio();
-      final response = await dio.get('http://localhost:8080/api/auth/login');
-      print('✅ Backend доступен: ${response.statusCode}');
-    } catch (e) {
-      print('❌ Backend недоступен: $e');
-    }
-
-    ApiClient.init();
-    runApp(const BalancePsyApp());
+  // Тест подключения к бэку
+  try {
+    final dio = Dio();
+    final response = await dio.get('http://localhost:8080/api/auth/login');
+    print('✅ Backend доступен: ${response.statusCode}');
+  } catch (e) {
+    print('❌ Backend недоступен: $e');
   }
 
+  // Инициализация клиента API
+  ApiClient.init();
+
+  runApp(const BalancePsyApp());
+}
 
 class BalancePsyApp extends StatelessWidget {
   const BalancePsyApp({super.key});
@@ -35,12 +35,33 @@ class BalancePsyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Авторизация + загрузка сохранённого пользователя
         ChangeNotifierProvider(create: (_) => AuthProvider()..loadUser()),
+
+        // Регистрация клиента
         ChangeNotifierProvider(create: (_) => RegistrationProvider()),
+
+        // Регистрация психолога
+        ChangeNotifierProvider(
+          create: (_) => PsychologistRegistrationProvider(),
+        ),
       ],
       child: MaterialApp(
         title: 'BalancePsy',
         debugShowCheckedModeBanner: false,
+
+        // ✅ ДОБАВЛЕНО: Начальный экран
+        home: const SplashScreen(),
+
+        // Локализация (даты, диалоги и т.п.)
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('ru', 'RU'), Locale('en', 'US')],
+        locale: const Locale('ru', 'RU'),
+
         theme: ThemeData(
           primaryColor: AppColors.primary,
           scaffoldBackgroundColor: AppColors.background,
@@ -94,14 +115,40 @@ class BalancePsyApp extends StatelessWidget {
               borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
-        ),
 
-        // Автоматически перенаправляем на веб-версию если открыто в браузере
-        initialRoute: '/',
-        routes: {
-          '/': (context) => const SplashScreen(),
-          '/home': (context) => const PsychologistHomeScreen(),
-        },
+          // ✅ ДОБАВЛЕНО: Тема для DatePicker (календарь)
+          datePickerTheme: DatePickerThemeData(
+            backgroundColor: AppColors.background,
+            headerBackgroundColor: AppColors.primary,
+            headerForegroundColor: Colors.white,
+            dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return Colors.white;
+              }
+              return AppColors.textPrimary;
+            }),
+            dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.primary;
+              }
+              return Colors.transparent;
+            }),
+            todayForegroundColor: WidgetStateProperty.all(AppColors.primary),
+            todayBackgroundColor: WidgetStateProperty.all(Colors.transparent),
+            yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return Colors.white;
+              }
+              return AppColors.textPrimary;
+            }),
+            yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.primary;
+              }
+              return Colors.transparent;
+            }),
+          ),
+        ),
       ),
     );
   }

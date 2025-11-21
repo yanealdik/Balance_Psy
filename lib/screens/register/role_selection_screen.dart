@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // ✅ Добавлено
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/back_button.dart';
+import '../../providers/psychologist_registration_provider.dart'; // ✅ Добавлено
 import 'user/register_step1.dart';
 import 'psychologist/psy_register_step1.dart';
 
@@ -112,6 +114,14 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                         'Удобные инструменты для работы',
                       ],
                       onTap: () {
+                        // ✅ ИСПРАВЛЕНО: Очищаем provider перед началом
+                        final psychProvider =
+                            Provider.of<PsychologistRegistrationProvider>(
+                              context,
+                              listen: false,
+                            );
+                        psychProvider.clear();
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(

@@ -8,6 +8,8 @@ import '../../../widgets/custom_text_field.dart';
 import '../../../widgets/step_indicator.dart';
 import '../../../widgets/back_button.dart';
 import '../../../providers/psychologist_registration_provider.dart';
+import '../../../services/auth_service.dart'; // ✅ Добавлено
+import '../../../core/utils/error_handler.dart'; // ✅ Добавлено
 import 'psy_register_success.dart';
 
 class PsyRegisterStep5 extends StatefulWidget {
@@ -19,7 +21,9 @@ class PsyRegisterStep5 extends StatefulWidget {
 
 class _PsyRegisterStep5State extends State<PsyRegisterStep5> {
   final _priceController = TextEditingController();
+  final AuthService _authService = AuthService(); // ✅ Инициализация
   bool _isSubmitting = false;
+  String? _errorMessage; // ✅ Для отображения ошибок
 
   final List<int> _suggestedPrices = [2000, 3000, 4000, 5000, 6000, 8000];
 
@@ -27,7 +31,6 @@ class _PsyRegisterStep5State extends State<PsyRegisterStep5> {
   void initState() {
     super.initState();
 
-    // Загружаем сохраненную цену
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<PsychologistRegistrationProvider>(
         context,
@@ -58,10 +61,14 @@ class _PsyRegisterStep5State extends State<PsyRegisterStep5> {
     return price != null && price >= 500 && price <= 50000;
   }
 
+  // ✅ ИСПРАВЛЕНО: Реальная отправка на бэкенд
   Future<void> _submitApplication() async {
     if (!_canSubmit || _isSubmitting) return;
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
 
     try {
       final provider = Provider.of<PsychologistRegistrationProvider>(
@@ -72,21 +79,19 @@ class _PsyRegisterStep5State extends State<PsyRegisterStep5> {
       // Сохраняем цену
       provider.setSessionPrice(double.parse(_priceController.text));
 
-      // TODO: Здесь должна быть отправка данных на backend
-      // Получаем все данные для регистрации
+      // Получаем все данные
       final registrationData = provider.getRegistrationData();
 
-      // Отправка на API
-      // await AuthService().registerPsychologist(registrationData);
+      print('📤 Submitting psychologist registration...');
+      print('Email: ${registrationData['email']}');
+      print('Name: ${registrationData['fullName']}');
 
-      // Также нужно загрузить сертификаты
-      // for (var cert in provider.certificates) {
-      //   await uploadCertificate(cert);
-      // }
+      // ✅ Отправка через AuthService
+      final user = await _authService.registerPsychologist(registrationData);
 
-      // Имитация отправки
-      await Future.delayed(const Duration(seconds: 3));
+      print('✅ Psychologist registered successfully! User ID: ${user.userId}');
 
+      // Обновляем статус
       provider.setApplicationStatus('pending');
 
       if (mounted) {
@@ -96,22 +101,40 @@ class _PsyRegisterStep5State extends State<PsyRegisterStep5> {
         );
       }
     } catch (e) {
-      setState(() => _isSubmitting = false);
+      print('❌ Registration failed: $e');
+
+      setState(() {
+        _errorMessage = ErrorHandler.getErrorMessage(e);
+        _isSubmitting = false;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Ошибка при отправке заявки: ${e.toString()}',
-              style: AppTextStyles.body2.copyWith(color: Colors.white),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _errorMessage!,
+                    style: AppTextStyles.body2.copyWith(color: Colors.white),
+                  ),
+                ),
+              ],
             ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
       }
     }
   }
@@ -154,6 +177,39 @@ class _PsyRegisterStep5State extends State<PsyRegisterStep5> {
                     ),
 
                     const SizedBox(height: 32),
+
+                    // ✅ Показ ошибок
+                    if (_errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.red.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: AppTextStyles.body2.copyWith(
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Поле ввода цены
                     Text(
@@ -369,7 +425,7 @@ class _PsyRegisterStep5State extends State<PsyRegisterStep5> {
             Padding(
               padding: const EdgeInsets.all(24),
               child: CustomButton(
-                text: 'Отправить заявку',
+                text: _isSubmitting ? 'Отправка...' : 'Отправить заявку',
                 showArrow: false,
                 onPressed: _canSubmit ? _submitApplication : null,
                 isFullWidth: true,

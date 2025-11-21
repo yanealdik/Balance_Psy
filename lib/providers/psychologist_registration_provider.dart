@@ -1,69 +1,47 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 
-/// Провайдер для хранения данных регистрации психолога
 class PsychologistRegistrationProvider with ChangeNotifier {
-  // Шаг 1: Личные данные
   String? _fullName;
   DateTime? _dateOfBirth;
   int? _age;
   String? _gender;
   String? _phone;
-
-  // Шаг 2: Email и пароль
   String? _email;
   String? _password;
   String? _verificationCode;
   bool _emailVerified = false;
-
-  // Шаг 3: Профессиональная информация
   String? _specialization;
   int? _experienceYears;
   String? _education;
   String? _bio;
   List<String> _approaches = [];
-
-  // Шаг 4: Документы и сертификаты
   List<File> _certificates = [];
-  String? _certificateUrl; // URL после загрузки
-
-  // Шаг 5: Стоимость услуг
+  String? _certificateUrl;
   double? _sessionPrice;
+  String _applicationStatus = 'draft';
 
-  // Статус заявки
-  String _applicationStatus = 'draft'; // draft, pending, approved, rejected
-
-  // Getters - Личные данные
+  // Getters
   String? get fullName => _fullName;
   DateTime? get dateOfBirth => _dateOfBirth;
   int? get age => _age;
   String? get gender => _gender;
   String? get phone => _phone;
-
-  // Getters - Email и пароль
   String? get email => _email;
   String? get password => _password;
   String? get verificationCode => _verificationCode;
   bool get emailVerified => _emailVerified;
-
-  // Getters - Профессиональные данные
   String? get specialization => _specialization;
   int? get experienceYears => _experienceYears;
   String? get education => _education;
   String? get bio => _bio;
   List<String> get approaches => _approaches;
-
-  // Getters - Документы
   List<File> get certificates => _certificates;
   String? get certificateUrl => _certificateUrl;
-
-  // Getters - Стоимость
   double? get sessionPrice => _sessionPrice;
-
-  // Getters - Статус
   String get applicationStatus => _applicationStatus;
 
-  // Setters - Шаг 1: Личные данные
+  // Setters
   void setPersonalInfo({
     required String fullName,
     required DateTime dateOfBirth,
@@ -79,7 +57,6 @@ class PsychologistRegistrationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Setters - Шаг 2: Email и пароль
   void setEmail(String email) {
     _email = email;
     notifyListeners();
@@ -100,7 +77,6 @@ class PsychologistRegistrationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Setters - Шаг 3: Профессиональная информация
   void setProfessionalInfo({
     required String specialization,
     required int experienceYears,
@@ -116,7 +92,6 @@ class PsychologistRegistrationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Setters - Шаг 4: Документы
   void addCertificate(File certificate) {
     _certificates.add(certificate);
     notifyListeners();
@@ -134,19 +109,16 @@ class PsychologistRegistrationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Setters - Шаг 5: Стоимость
   void setSessionPrice(double price) {
     _sessionPrice = price;
     notifyListeners();
   }
 
-  // Статус заявки
   void setApplicationStatus(String status) {
     _applicationStatus = status;
     notifyListeners();
   }
 
-  // Проверка готовности каждого шага
   bool get isStep1Complete {
     return _fullName != null &&
         _fullName!.isNotEmpty &&
@@ -183,7 +155,6 @@ class PsychologistRegistrationProvider with ChangeNotifier {
     return _sessionPrice != null && _sessionPrice! > 0;
   }
 
-  // Проверка готовности к регистрации
   bool get canRegister {
     return isStep1Complete &&
         isStep2Complete &&
@@ -192,27 +163,38 @@ class PsychologistRegistrationProvider with ChangeNotifier {
         isStep5Complete;
   }
 
-  // Получить данные для отправки на backend
+  /// ✅ ИСПРАВЛЕНО: Правильный формат данных
   Map<String, dynamic> getRegistrationData() {
+    // Форматируем дату в YYYY-MM-DD
+    String formattedDate = '';
+    if (_dateOfBirth != null) {
+      formattedDate =
+          '${_dateOfBirth!.year.toString().padLeft(4, '0')}-'
+          '${_dateOfBirth!.month.toString().padLeft(2, '0')}-'
+          '${_dateOfBirth!.day.toString().padLeft(2, '0')}';
+    }
+
+    print('📋 Provider data:');
+    print('  - dateOfBirth: $_dateOfBirth -> $formattedDate');
+    print('  - approaches: $_approaches (${_approaches.runtimeType})');
+    print('  - sessionPrice: $_sessionPrice (${_sessionPrice.runtimeType})');
+
     return {
       'email': _email,
       'password': _password,
       'fullName': _fullName,
-      'dateOfBirth': _dateOfBirth?.toIso8601String().split('T')[0],
-      'gender': _gender,
-      'phone': _phone,
-      'role': 'PSYCHOLOGIST',
+      'dateOfBirth': formattedDate, // ✅ Формат: "YYYY-MM-DD"
+      'phone': _phone ?? '', // ✅ Пустая строка вместо null
+      'gender': _gender ?? 'other', // ✅ Значение по умолчанию
       'specialization': _specialization,
       'experienceYears': _experienceYears,
       'education': _education,
       'bio': _bio,
-      'approaches': _approaches,
-      'sessionPrice': _sessionPrice,
-      'certificateUrl': _certificateUrl,
+      'approaches': _approaches.toSet(), // ✅ Преобразуем List -> Set
+      'sessionPrice': _sessionPrice, // ✅ Будет double
     };
   }
 
-  // Очистить все данные
   void clear() {
     _fullName = null;
     _dateOfBirth = null;

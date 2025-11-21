@@ -31,17 +31,62 @@ class AuthService {
     }
   }
 
-  /// ✅ Регистрация психолога
+  /// ✅ Регистрация психолога (С ДЕТАЛЬНОЙ ОТЛАДКОЙ)
   Future<UserModel> registerPsychologist(Map<String, dynamic> data) async {
     try {
       print('📤 Registering PSYCHOLOGIST: ${data['email']}');
+      print('📋 Full data received:');
+      print('  - email: ${data['email']}');
+      print('  - fullName: ${data['fullName']}');
+      print(
+        '  - dateOfBirth: ${data['dateOfBirth']} (${data['dateOfBirth'].runtimeType})',
+      );
+      print('  - phone: ${data['phone']}');
+      print('  - gender: ${data['gender']}');
+      print('  - specialization: ${data['specialization']}');
+      print(
+        '  - experienceYears: ${data['experienceYears']} (${data['experienceYears'].runtimeType})',
+      );
+      print('  - education length: ${data['education']?.toString().length}');
+      print('  - bio length: ${data['bio']?.toString().length}');
+      print(
+        '  - approaches: ${data['approaches']} (${data['approaches'].runtimeType})',
+      );
+      print(
+        '  - sessionPrice: ${data['sessionPrice']} (${data['sessionPrice'].runtimeType})',
+      );
+
+      // ✅ ИСПРАВЛЕНО: Преобразуем данные в правильный формат
+      final requestData = {
+        'email': data['email'],
+        'password': data['password'],
+        'passwordRepeat': data['password'],
+        'fullName': data['fullName'],
+        'dateOfBirth': data['dateOfBirth'], // Уже в формате "YYYY-MM-DD"
+        'phone': data['phone'],
+        'gender': data['gender'],
+        'specialization': data['specialization'],
+        'experienceYears': data['experienceYears'],
+        'education': data['education'],
+        'bio': data['bio'],
+        'approaches': (data['approaches'] as Set)
+            .toList(), // ✅ Преобразуем Set -> List
+        'hourlyRate': data['sessionPrice'], // ✅ Отправляем как число
+      };
+
+      print('📦 Prepared request data:');
+      print('  - dateOfBirth: ${requestData['dateOfBirth']}');
+      print('  - experienceYears: ${requestData['experienceYears']}');
+      print('  - approaches: ${requestData['approaches']}');
+      print('  - hourlyRate: ${requestData['hourlyRate']}');
 
       final response = await _dio.post(
         '/api/auth/register/psychologist',
-        data: data,
+        data: requestData,
       );
 
       print('✅ Psychologist registered: ${response.statusCode}');
+      print('📥 Response data: ${response.data}');
 
       if (response.data['success'] == true) {
         return UserModel.fromJson(response.data['data']);
@@ -49,10 +94,42 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Registration failed');
       }
     } on DioException catch (e) {
-      print('❌ Psychologist registration error: ${e.response?.data}');
-      throw Exception(
-        e.response?.data['message'] ?? 'Failed to register psychologist',
-      );
+      print('❌ Psychologist registration error:');
+      print('   Status code: ${e.response?.statusCode}');
+      print('   Response data: ${e.response?.data}');
+      print('   Message: ${e.message}');
+
+      // ✅ УЛУЧШЕНО: Извлекаем детальное сообщение об ошибке
+      String errorMessage = 'Failed to register psychologist';
+
+      if (e.response?.data != null) {
+        try {
+          if (e.response!.data is Map) {
+            final data = e.response!.data as Map<String, dynamic>;
+
+            // Ищем сообщение об ошибке в разных полях
+            if (data['message'] != null) {
+              errorMessage = data['message'];
+            } else if (data['error'] != null) {
+              errorMessage = data['error'];
+            } else if (data['errors'] != null) {
+              errorMessage = data['errors'].toString();
+            }
+          } else {
+            errorMessage = e.response!.data.toString();
+          }
+        } catch (parseError) {
+          print('⚠️ Error parsing error response: $parseError');
+        }
+      } else if (e.message != null) {
+        errorMessage = e.message!;
+      }
+
+      print('🔴 Final error message: $errorMessage');
+      throw Exception(errorMessage);
+    } catch (e) {
+      print('❌ Unexpected error: $e');
+      throw Exception('Unexpected error: ${e.toString()}');
     }
   }
 
@@ -62,7 +139,7 @@ class AuthService {
       print('🔵 Logging in: $email');
 
       final response = await _dio.post(
-        ApiEndpoints.login, // '/api/auth/login'
+        ApiEndpoints.login,
         data: {'email': email, 'password': password},
       );
 
@@ -71,7 +148,6 @@ class AuthService {
       if (response.statusCode == 200 && response.data['success'] == true) {
         final loginResponse = LoginResponse.fromJson(response.data['data']);
 
-        // Сохраняем токен
         await TokenStorage.saveToken(loginResponse.token);
         await TokenStorage.saveEmail(email);
 
@@ -86,7 +162,7 @@ class AuthService {
     }
   }
 
-  /// ✅ Получить расширенный профиль (с psychologistProfile для PSYCHOLOGIST)
+  /// ✅ Получить расширенный профиль
   Future<ProfileResponse> getProfile() async {
     try {
       print('🔵 Getting profile...');
@@ -106,17 +182,14 @@ class AuthService {
     }
   }
 
-  /// Логаут
   Future<void> logout() async {
     await TokenStorage.clearAll();
   }
 
-  /// Проверка авторизации
   Future<bool> isAuthenticated() async {
     return await TokenStorage.hasToken();
   }
 
-  /// Получить текущего пользователя (простая версия без psychologistProfile)
   Future<UserModel> getCurrentUser() async {
     try {
       final response = await _dio.get(ApiEndpoints.userMe);

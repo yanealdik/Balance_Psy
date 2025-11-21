@@ -9,6 +9,8 @@ import '../../../widgets/custom_text_field.dart';
 import '../../../widgets/step_indicator.dart';
 import '../../../widgets/back_button.dart';
 import '../../../providers/psychologist_registration_provider.dart';
+import '../../../services/registration_service.dart'; // ✅ Добавлено
+import '../../../core/utils/error_handler.dart'; // ✅ Добавлено
 import 'psy_register_step3.dart';
 
 class PsyRegisterStep2 extends StatefulWidget {
@@ -22,6 +24,8 @@ class _PsyRegisterStep2State extends State<PsyRegisterStep2> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final RegistrationService _registrationService =
+      RegistrationService(); // ✅ Инициализация
 
   final List<TextEditingController> _codeControllers = List.generate(
     6,
@@ -38,11 +42,12 @@ class _PsyRegisterStep2State extends State<PsyRegisterStep2> {
   Timer? _resendTimer;
   int _resendCountdown = 0;
 
+  String? _errorMessage; // ✅ Добавлено для ошибок
+
   @override
   void initState() {
     super.initState();
 
-    // Загружаем сохраненные данные
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<PsychologistRegistrationProvider>(
         context,
@@ -115,14 +120,22 @@ class _PsyRegisterStep2State extends State<PsyRegisterStep2> {
     });
   }
 
+  // ✅ ИСПРАВЛЕНО: Реальная отправка кода через RegistrationService
   Future<void> _sendVerificationCode() async {
     if (!_canSendCode) return;
 
-    setState(() => _isSendingCode = true);
+    setState(() {
+      _isSendingCode = true;
+      _errorMessage = null;
+    });
 
     try {
-      // TODO: Вызов API для отправки кода
-      await Future.delayed(const Duration(seconds: 2));
+      print('📤 Sending verification code to: ${_emailController.text.trim()}');
+
+      await _registrationService.sendVerificationCode(
+        _emailController.text.trim(),
+        isParentEmail: false, // ✅ Психолог — не родительский email
+      );
 
       setState(() {
         _codeSent = true;
@@ -147,16 +160,19 @@ class _PsyRegisterStep2State extends State<PsyRegisterStep2> {
         );
       }
 
-      // Фокус на первое поле кода
       _codeFocusNodes[0].requestFocus();
     } catch (e) {
-      setState(() => _isSendingCode = false);
+      print('❌ Send code error: $e');
+      setState(() {
+        _errorMessage = ErrorHandler.getErrorMessage(e);
+        _isSendingCode = false;
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Ошибка отправки кода: ${e.toString()}',
+              _errorMessage!,
               style: AppTextStyles.body2.copyWith(color: Colors.white),
             ),
             backgroundColor: AppColors.error,
@@ -170,65 +186,69 @@ class _PsyRegisterStep2State extends State<PsyRegisterStep2> {
     }
   }
 
+  // ✅ ИСПРАВЛЕНО: Реальная проверка кода через RegistrationService
   Future<void> _verifyCode() async {
     if (!_canVerify) return;
 
-    setState(() => _isVerifying = true);
+    setState(() {
+      _isVerifying = true;
+      _errorMessage = null;
+    });
 
     final code = _codeControllers.map((c) => c.text).join();
 
     try {
-      // TODO: Вызов API для проверки кода
-      await Future.delayed(const Duration(seconds: 2));
+      print('📤 Verifying code: $code for ${_emailController.text.trim()}');
 
-      final provider = Provider.of<PsychologistRegistrationProvider>(
-        context,
-        listen: false,
+      final verified = await _registrationService.verifyCode(
+        _emailController.text.trim(),
+        code,
+        isParentEmail: false,
       );
 
-      provider.setEmail(_emailController.text.trim());
-      provider.setPassword(_passwordController.text);
-      provider.setVerificationCode(code);
-      provider.setEmailVerified(true);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Email успешно подтвержден!',
-              style: AppTextStyles.body2.copyWith(color: Colors.white),
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-
-        Navigator.push(
+      if (verified) {
+        final provider = Provider.of<PsychologistRegistrationProvider>(
           context,
-          MaterialPageRoute(builder: (context) => const PsyRegisterStep3()),
+          listen: false,
         );
+
+        provider.setEmail(_emailController.text.trim());
+        provider.setPassword(_passwordController.text);
+        provider.setVerificationCode(code);
+        provider.setEmailVerified(true);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Email успешно подтвержден!',
+                style: AppTextStyles.body2.copyWith(color: Colors.white),
+              ),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PsyRegisterStep3()),
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Неверный код подтверждения';
+        });
       }
     } catch (e) {
+      print('❌ Verify code error: $e');
+      setState(() {
+        _errorMessage = ErrorHandler.getErrorMessage(e);
+      });
+    } finally {
       setState(() => _isVerifying = false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Неверный код подтверждения',
-              style: AppTextStyles.body2.copyWith(color: Colors.white),
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-      }
     }
   }
 
@@ -270,6 +290,39 @@ class _PsyRegisterStep2State extends State<PsyRegisterStep2> {
                     ),
 
                     const SizedBox(height: 32),
+
+                    // ✅ Показ ошибок
+                    if (_errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.red.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: AppTextStyles.body2.copyWith(
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     if (!_codeSent) ...[
                       // Email
