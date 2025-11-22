@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api/api_client.dart';
+import 'providers/appointment_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/registration_provider.dart';
 import 'providers/psychologist_registration_provider.dart';
@@ -35,16 +36,14 @@ class BalancePsyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Авторизация + загрузка сохранённого пользователя
         ChangeNotifierProvider(create: (_) => AuthProvider()..loadUser()),
-
-        // Регистрация клиента
         ChangeNotifierProvider(create: (_) => RegistrationProvider()),
-
-        // Регистрация психолога
         ChangeNotifierProvider(
           create: (_) => PsychologistRegistrationProvider(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => AppointmentProvider(),
+        ), // ✅ Добавлено
       ],
       child: MaterialApp(
         title: 'BalancePsy',

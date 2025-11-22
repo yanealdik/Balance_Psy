@@ -13,6 +13,7 @@ class CustomButton extends StatelessWidget {
   final bool isFullWidth; // Растянуть на всю ширину
   final double? height; // Высота кнопки (по умолчанию 56)
   final double? fontSize; // Размер шрифта (по умолчанию 16)
+  final bool isLoading; // Показывать индикатор загрузки
 
   const CustomButton({
     super.key,
@@ -25,6 +26,7 @@ class CustomButton extends StatelessWidget {
     this.isFullWidth = false,
     this.height,
     this.fontSize,
+    this.isLoading = false,
   });
 
   @override
@@ -51,7 +53,7 @@ class CustomButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: onPressed,
+          onTap: isLoading ? null : onPressed,
           borderRadius: BorderRadius.circular((height ?? 56) / 2),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -59,24 +61,34 @@ class CustomButton extends StatelessWidget {
               mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (icon != null) ...[
-                  Icon(icon, color: _getTextColor(), size: 20),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  text,
-                  style:
-                      (isPrimary
-                              ? AppTextStyles.button
-                              : AppTextStyles.buttonSecondary)
-                          .copyWith(
-                            fontSize: fontSize ?? 16,
-                            color: _getTextColor(),
-                          ),
-                ),
-                if (showArrow) ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.arrow_forward, color: _getTextColor(), size: 20),
+                if (isLoading) ...[
+                  SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(_getTextColor()),
+                    ),
+                  ),
+                ] else ...[
+                  if (icon != null) ...[
+                    Icon(icon, color: _getTextColor(), size: 20),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    text,
+                    style: (isPrimary
+                            ? AppTextStyles.button
+                            : AppTextStyles.buttonSecondary)
+                        .copyWith(
+                          fontSize: fontSize ?? 16,
+                          color: _getTextColor(),
+                        ),
+                  ),
+                  if (showArrow) ...[
+                    const SizedBox(width: 8),
+                    Icon(Icons.arrow_forward, color: _getTextColor(), size: 20),
+                  ],
                 ],
               ],
             ),
@@ -90,7 +102,7 @@ class CustomButton extends StatelessWidget {
 
   // Определяем цвет фона кнопки
   Color _getBackgroundColor() {
-    if (onPressed == null) {
+    if (onPressed == null || isLoading) {
       // Disabled state
       return AppColors.inputBorder;
     }
@@ -100,7 +112,7 @@ class CustomButton extends StatelessWidget {
 
   // Определяем цвет текста кнопки
   Color _getTextColor() {
-    if (onPressed == null) {
+    if (onPressed == null || isLoading) {
       // Disabled state
       return AppColors.textTertiary;
     }

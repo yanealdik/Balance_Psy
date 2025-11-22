@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 class AppointmentModel {
   final int id;
   final int clientId;
@@ -68,6 +70,31 @@ class AppointmentModel {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'clientId': clientId,
+      'clientName': clientName,
+      'clientAvatarUrl': clientAvatarUrl,
+      'psychologistId': psychologistId,
+      'psychologistName': psychologistName,
+      'psychologistAvatarUrl': psychologistAvatarUrl,
+      'appointmentDate': appointmentDate,
+      'startTime': startTime,
+      'endTime': endTime,
+      'format': format,
+      'status': status,
+      'issueDescription': issueDescription,
+      'notes': notes,
+      'price': price,
+      'createdAt': createdAt,
+      'confirmedAt': confirmedAt,
+      'completedAt': completedAt,
+      'cancelledAt': cancelledAt,
+      'cancellationReason': cancellationReason,
+    };
+  }
+
   // Вспомогательные методы для UI
   String get statusDisplayName {
     switch (status) {
@@ -96,6 +123,36 @@ class AppointmentModel {
         return 'Телефон';
       default:
         return format;
+    }
+  }
+
+  Color get statusColor {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFFFF4E0);
+      case 'CONFIRMED':
+        return const Color(0xFFE3F2FD);
+      case 'COMPLETED':
+        return const Color(0xFFE8F5E9);
+      case 'CANCELLED':
+        return const Color(0xFFFFE8E8);
+      default:
+        return const Color(0xFFF5F5F5);
+    }
+  }
+
+  Color get statusTextColor {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFD4A747);
+      case 'CONFIRMED':
+        return const Color(0xFF1976D2);
+      case 'COMPLETED':
+        return const Color(0xFF4CAF50);
+      case 'CANCELLED':
+        return const Color(0xFFF44336);
+      default:
+        return const Color(0xFF757575);
     }
   }
 }

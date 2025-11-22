@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
-import 'payment_screen.dart';
+import '../../providers/appointment_provider.dart';
 
-/// Экран записи на сессию с выбором времени
 class BookingScreen extends StatefulWidget {
   final String psychologistName;
   final String psychologistImage;
   final String specialty;
   final double rating;
+  final double hourlyRate;
+  final int psychologistId;
 
   const BookingScreen({
     super.key,
     required this.psychologistName,
     required this.psychologistImage,
     required this.specialty,
-    required this.rating, required double hourlyRate, required int psychologistId,
+    required this.rating,
+    required this.hourlyRate,
+    required this.psychologistId,
   });
 
   @override
@@ -26,9 +30,10 @@ class BookingScreen extends StatefulWidget {
 class _BookingScreenState extends State<BookingScreen> {
   DateTime selectedDate = DateTime.now();
   String? selectedTime;
-  String selectedFormat = 'video'; // video или chat
+  String selectedFormat = 'video';
+  String selectedIssue = '';
+  bool _isCreating = false;
 
-  // Пример доступных слотов времени
   final List<String> availableSlots = [
     '09:00',
     '10:00',
@@ -38,6 +43,15 @@ class _BookingScreenState extends State<BookingScreen> {
     '16:00',
     '17:30',
     '19:00',
+  ];
+
+  final List<Map<String, dynamic>> _issues = [
+    {'title': 'Тревожность', 'icon': Icons.psychology},
+    {'title': 'Депрессия', 'icon': Icons.cloud},
+    {'title': 'Отношения', 'icon': Icons.favorite},
+    {'title': 'Самооценка', 'icon': Icons.star},
+    {'title': 'Стресс', 'icon': Icons.flash_on},
+    {'title': 'Другое', 'icon': Icons.more_horiz},
   ];
 
   @override
@@ -51,10 +65,7 @@ class _BookingScreenState extends State<BookingScreen> {
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Запись на сессию',
-          style: AppTextStyles.h3.copyWith(fontSize: 18),
-        ),
+        title: Text('Запись на сессию', style: AppTextStyles.h3.copyWith(fontSize: 18)),
       ),
       body: SafeArea(
         child: Column(
@@ -65,69 +76,30 @@ class _BookingScreenState extends State<BookingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Карточка психолога
                     _buildPsychologistInfo(),
-
                     const SizedBox(height: 24),
-
-                    // Выбор формата
-                    Text(
-                      'Формат сессии',
-                      style: AppTextStyles.h3.copyWith(fontSize: 18),
-                    ),
+                    Text('Формат сессии', style: AppTextStyles.h3.copyWith(fontSize: 18)),
                     const SizedBox(height: 12),
                     _buildFormatSelector(),
-
                     const SizedBox(height: 24),
-
-                    // Выбор даты
-                    Text(
-                      'Выберите дату',
-                      style: AppTextStyles.h3.copyWith(fontSize: 18),
-                    ),
+                    Text('Выберите дату', style: AppTextStyles.h3.copyWith(fontSize: 18)),
                     const SizedBox(height: 12),
                     _buildDateSelector(),
-
                     const SizedBox(height: 24),
-
-                    // Выбор времени
-                    Text(
-                      'Доступное время',
-                      style: AppTextStyles.h3.copyWith(fontSize: 18),
-                    ),
+                    Text('Доступное время', style: AppTextStyles.h3.copyWith(fontSize: 18)),
                     const SizedBox(height: 12),
                     _buildTimeSlots(),
-
                     const SizedBox(height: 24),
-
-                    // Информация о сессии
+                    Text('Тема обращения', style: AppTextStyles.h3.copyWith(fontSize: 18)),
+                    const SizedBox(height: 12),
+                    _buildIssueSelector(),
+                    const SizedBox(height: 24),
                     _buildSessionInfo(),
                   ],
                 ),
               ),
             ),
-
-            // Кнопка подтверждения
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.shadow.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: CustomButton(
-                  text: 'Отправить заявку',
-                  onPressed: selectedTime != null ? _confirmBooking : null,
-                  isFullWidth: true,
-                ),
-              ),
-            ),
+            _buildBottomBar(),
           ],
         ),
       ),
@@ -163,21 +135,14 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
             ),
           ),
-
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.psychologistName,
-                  style: AppTextStyles.h3.copyWith(fontSize: 17),
-                ),
+                Text(widget.psychologistName, style: AppTextStyles.h3.copyWith(fontSize: 17)),
                 const SizedBox(height: 4),
-                Text(
-                  widget.specialty,
-                  style: AppTextStyles.body2.copyWith(fontSize: 13),
-                ),
+                Text(widget.specialty, style: AppTextStyles.body2.copyWith(fontSize: 13)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -185,10 +150,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(width: 4),
                     Text(
                       widget.rating.toString(),
-                      style: AppTextStyles.body2.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppTextStyles.body2.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -203,17 +165,11 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _buildFormatSelector() {
     return Row(
       children: [
-        Expanded(
-          child: _buildFormatOption(
-            'video',
-            'Видео-звонок',
-            Icons.videocam_outlined,
-          ),
-        ),
+        Expanded(child: _buildFormatOption('video', 'Видео-звонок', Icons.videocam_outlined)),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildFormatOption('chat', 'Чат', Icons.chat_bubble_outline),
-        ),
+        Expanded(child: _buildFormatOption('chat', 'Чат', Icons.chat_bubble_outline)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildFormatOption('phone', 'Телефон', Icons.phone_outlined)),
       ],
     );
   }
@@ -225,9 +181,7 @@ class _BookingScreenState extends State<BookingScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
-              : AppColors.cardBackground,
+          color: isSelected ? AppColors.primary.withOpacity(0.1) : AppColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.inputBorder,
@@ -236,11 +190,7 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              size: 32,
-            ),
+            Icon(icon, color: isSelected ? AppColors.primary : AppColors.textSecondary, size: 32),
             const SizedBox(height: 8),
             Text(
               label,
@@ -261,7 +211,7 @@ class _BookingScreenState extends State<BookingScreen> {
       height: 80,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: 14, // Показываем 2 недели вперед
+        itemCount: 14,
         itemBuilder: (context, index) {
           final date = DateTime.now().add(Duration(days: index));
           final isSelected = _isSameDay(date, selectedDate);
@@ -274,14 +224,10 @@ class _BookingScreenState extends State<BookingScreen> {
                 width: 60,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.cardBackground,
+                  color: isSelected ? AppColors.primary : AppColors.cardBackground,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.inputBorder,
+                    color: isSelected ? AppColors.primary : AppColors.inputBorder,
                     width: 1.5,
                   ),
                 ),
@@ -292,9 +238,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       _getWeekday(date.weekday),
                       style: AppTextStyles.body2.copyWith(
                         fontSize: 12,
-                        color: isSelected
-                            ? AppColors.textWhite
-                            : AppColors.textSecondary,
+                        color: isSelected ? AppColors.textWhite : AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -302,9 +246,7 @@ class _BookingScreenState extends State<BookingScreen> {
                       date.day.toString(),
                       style: AppTextStyles.h3.copyWith(
                         fontSize: 20,
-                        color: isSelected
-                            ? AppColors.textWhite
-                            : AppColors.textPrimary,
+                        color: isSelected ? AppColors.textWhite : AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -349,6 +291,49 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
+  Widget _buildIssueSelector() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: _issues.map((issue) {
+        final isSelected = selectedIssue == issue['title'];
+        return GestureDetector(
+          onTap: () => setState(() => selectedIssue = issue['title']),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary.withOpacity(0.1) : AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? AppColors.primary : AppColors.inputBorder,
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  issue['icon'],
+                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  issue['title'],
+                  style: AppTextStyles.body1.copyWith(
+                    fontSize: 14,
+                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildSessionInfo() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -362,11 +347,7 @@ class _BookingScreenState extends State<BookingScreen> {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.info_outline,
-                color: AppColors.primary,
-                size: 20,
-              ),
+              const Icon(Icons.info_outline, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Информация о записи',
@@ -381,18 +362,96 @@ class _BookingScreenState extends State<BookingScreen> {
           const SizedBox(height: 12),
           Text(
             '• Длительность сессии: 60 минут\n'
+            '• Стоимость: ${widget.hourlyRate.toStringAsFixed(0)} ₸/час\n'
             '• Психолог подтвердит запись в течение 2 часов\n'
-            '• Вы получите уведомление о подтверждении\n'
             '• Отменить можно за 24 часа до начала',
             style: AppTextStyles.body2.copyWith(
               fontSize: 13,
               height: 1.5,
-              color: AppColors.textSecondary,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: CustomButton(
+          text: _isCreating ? 'Отправка...' : 'Отправить заявку',
+          onPressed: selectedTime != null && !_isCreating ? _confirmBooking : null,
+          isFullWidth: true,
+          isLoading: _isCreating,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmBooking() async {
+    if (selectedTime == null || selectedIssue.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Выберите время и тему обращения')),
+      );
+      return;
+    }
+
+    setState(() => _isCreating = true);
+
+    try {
+      final appointmentProvider = Provider.of<AppointmentProvider>(context, listen: false);
+      
+      // Вычисляем endTime (час после startTime)
+      final startParts = selectedTime!.split(':');
+      final startHour = int.parse(startParts[0]);
+      final endTime = '${(startHour + 1).toString().padLeft(2, '0')}:${startParts[1]}';
+
+      final success = await appointmentProvider.createAppointment(
+        psychologistId: widget.psychologistId,
+        date: _formatDate(selectedDate),
+        startTime: selectedTime!,
+        endTime: endTime,
+        format: selectedFormat,
+        issueDescription: selectedIssue,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Заявка успешно отправлена!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        throw Exception(appointmentProvider.errorMessage ?? 'Ошибка создания записи');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
+    }
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
@@ -406,41 +465,7 @@ class _BookingScreenState extends State<BookingScreen> {
     return weekdays[weekday - 1];
   }
 
-  String _getMonthName(int month) {
-    const months = [
-      'января',
-      'февраля',
-      'марта',
-      'апреля',
-      'мая',
-      'июня',
-      'июля',
-      'августа',
-      'сентября',
-      'октября',
-      'ноября',
-      'декабря',
-    ];
-    return months[month - 1];
-  }
-
-  void _confirmBooking() {
-    if (selectedTime == null) return;
-
-    // Переходим на экран оплаты
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PaymentScreen(
-          psychologistName: widget.psychologistName,
-          psychologistImage: widget.psychologistImage,
-          sessionDate:
-              '${selectedDate.day} ${_getMonthName(selectedDate.month)}',
-          sessionTime: selectedTime!,
-          price: 8000, // TODO: Получать цену из профиля психолога
-          sessionFormat: selectedFormat,
-        ),
-      ),
-    );
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }

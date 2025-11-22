@@ -438,7 +438,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen>
                   psychologistImage: widget.psychologist.avatarUrl ?? '',
                   specialty: widget.psychologist.specialization,
                   rating: widget.psychologist.rating,
-                  hourlyRate: widget.psychologist.hourlyRate,
+                  hourlyRate: widget.psychologist.hourlyRate.toDouble(),
                 ),
               ),
             );
