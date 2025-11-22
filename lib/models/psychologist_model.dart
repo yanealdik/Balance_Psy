@@ -17,7 +17,6 @@ class PsychologistModel {
   final int totalSessions;
   final bool isAvailable;
   final bool isVerified;
-  final String verificationStatus;
   final String? createdAt;
 
   PsychologistModel({
@@ -39,7 +38,6 @@ class PsychologistModel {
     required this.totalSessions,
     required this.isAvailable,
     required this.isVerified,
-    required this.verificationStatus,
     this.createdAt,
   });
 
@@ -63,7 +61,6 @@ class PsychologistModel {
       totalSessions: json['totalSessions'] as int,
       isAvailable: json['isAvailable'] as bool,
       isVerified: json['isVerified'] as bool,
-      verificationStatus: json['verificationStatus'] as String,
       createdAt: json['createdAt'] as String?,
     );
   }
