@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/psychologist/schedule/calendar_header.dart';
 import '../../widgets/psychologist/schedule/mini_calendar_widget.dart';
 import '../../widgets/psychologist/schedule/appointment_card_widget.dart';
 import '../../widgets/psychologist/schedule/full_calendar_modal.dart';
+import '../../providers/appointment_provider.dart';
 import 'Appointment/appointment.dart';
 
 class PsychologistScheduleScreen extends StatefulWidget {
@@ -20,65 +22,55 @@ class _PsychologistScheduleScreenState
   DateTime selectedDate = DateTime.now();
   DateTime displayedMonth = DateTime.now();
 
-  List<Map<String, dynamic>> allAppointments = [
-    {
-      'name': 'Алдияр Байділда',
-      'image': 'https://i.pravatar.cc/150?img=60',
-      'date': DateTime.now(),
-      'time': '15:30',
-      'status': 'Ожидается',
-      'statusColor': const Color(0xFFFFF4E0),
-      'statusTextColor': const Color(0xFFD4A747),
-    },
-    {
-      'name': 'Рамина Канатовна',
-      'image': 'https://i.pravatar.cc/150?img=45',
-      'date': DateTime.now(),
-      'time': '17:00',
-      'status': 'Ожидается',
-      'statusColor': const Color(0xFFFFF4E0),
-      'statusTextColor': const Color(0xFFD4A747),
-    },
-    {
-      'name': 'Ажар Алимбет',
-      'image': 'https://i.pravatar.cc/150?img=32',
-      'date': DateTime.now(),
-      'time': '20:30',
-      'status': 'отменен',
-      'statusColor': const Color(0xFFFFE8E8),
-      'statusTextColor': AppColors.error,
-    },
-    {
-      'name': 'Айгуль Сериккызы',
-      'image': 'https://i.pravatar.cc/150?img=27',
-      'date': DateTime.now().add(const Duration(days: 1)),
-      'time': '10:00',
-      'status': 'Ожидается',
-      'statusColor': const Color(0xFFFFF4E0),
-      'statusTextColor': const Color(0xFFD4A747),
-    },
-    {
-      'name': 'Нурлан Ержанов',
-      'image': 'https://i.pravatar.cc/150?img=12',
-      'date': DateTime.now().add(const Duration(days: 2)),
-      'time': '14:30',
-      'status': 'Завершен',
-      'statusColor': const Color(0xFFE8F5E9),
-      'statusTextColor': AppColors.success,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Загружаем реальные записи при инициализации
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAppointments();
+    });
+  }
 
-  List<Map<String, dynamic>> get todayAppointments {
-    return allAppointments.where((appointment) {
-      final appointmentDate = appointment['date'] as DateTime;
-      return appointmentDate.year == selectedDate.year &&
-          appointmentDate.month == selectedDate.month &&
-          appointmentDate.day == selectedDate.day;
-    }).toList();
+  Future<void> _loadAppointments() async {
+    final appointmentProvider = Provider.of<AppointmentProvider>(
+      context,
+      listen: false,
+    );
+    await appointmentProvider.loadPsychologistAppointments();
   }
 
   @override
   Widget build(BuildContext context) {
+    final appointmentProvider = Provider.of<AppointmentProvider>(context);
+
+    // ✅ Получаем реальные данные из provider
+    final allAppointments = appointmentProvider.appointments;
+
+    // ✅ Фильтруем записи на выбранную дату
+    final todayAppointments = allAppointments.where((appointment) {
+      try {
+        final appointmentDate = DateTime.parse(appointment.appointmentDate);
+        return appointmentDate.year == selectedDate.year &&
+            appointmentDate.month == selectedDate.month &&
+            appointmentDate.day == selectedDate.day;
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+
+    // ✅ Получаем все даты с записями для подсветки в календаре
+    final appointmentDates = allAppointments
+        .map((apt) {
+          try {
+            return DateTime.parse(apt.appointmentDate);
+          } catch (e) {
+            return null;
+          }
+        })
+        .where((date) => date != null)
+        .cast<DateTime>()
+        .toList();
+
     return Material(
       color: AppColors.backgroundLight,
       child: Stack(
@@ -99,7 +91,7 @@ class _PsychologistScheduleScreenState
                 // Календарь
                 CalendarHeader(
                   displayedMonth: displayedMonth,
-                  onTap: _showFullCalendar,
+                  onTap: () => _showFullCalendar(appointmentDates),
                   child: MiniCalendarWidget(
                     selectedDate: selectedDate,
                     onDateSelected: (date) =>
@@ -116,11 +108,11 @@ class _PsychologistScheduleScreenState
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Сегодняшние приёмы',
+                        'Приёмы на ${_getDateString(selectedDate)}',
                         style: AppTextStyles.h3.copyWith(fontSize: 22),
                       ),
                       GestureDetector(
-                        onTap: _showAllAppointments,
+                        onTap: () => _showAllAppointments(allAppointments),
                         child: Row(
                           children: [
                             Text(
@@ -146,9 +138,11 @@ class _PsychologistScheduleScreenState
 
                 const SizedBox(height: 16),
 
-                // Список приёмов
+                // ✅ Список приёмов с индикатором загрузки
                 Expanded(
-                  child: todayAppointments.isEmpty
+                  child: appointmentProvider.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : todayAppointments.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -169,22 +163,47 @@ class _PsychologistScheduleScreenState
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                          itemCount: todayAppointments.length,
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: AppointmentCardWidget(
-                                appointment: todayAppointments[index],
-                              ),
-                            );
-                          },
+                      : RefreshIndicator(
+                          onRefresh: _loadAppointments,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                            itemCount: todayAppointments.length,
+                            itemBuilder: (context, index) {
+                              final appointment = todayAppointments[index];
+
+                              // ✅ Преобразуем AppointmentModel в формат для карточки
+                              final appointmentData = {
+                                'name': appointment.clientName,
+                                'image':
+                                    appointment.clientAvatarUrl ??
+                                    'https://i.pravatar.cc/150?img=60',
+                                'date': DateTime.parse(
+                                  appointment.appointmentDate,
+                                ),
+                                'time': appointment.startTime,
+                                'status': _getStatusText(appointment.status),
+                                'statusColor': _getStatusColor(
+                                  appointment.status,
+                                ),
+                                'statusTextColor': _getStatusTextColor(
+                                  appointment.status,
+                                ),
+                              };
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: AppointmentCardWidget(
+                                  appointment: appointmentData,
+                                ),
+                              );
+                            },
+                          ),
                         ),
                 ),
               ],
             ),
           ),
+
           // Плавающая кнопка добавления
           Positioned(
             right: 16,
@@ -211,10 +230,9 @@ class _PsychologistScheduleScreenState
       MaterialPageRoute(
         builder: (context) => CreateAppointmentScreen(
           initialDate: selectedDate,
-          onAppointmentCreated: (appointment) {
-            setState(() {
-              allAppointments.add(appointment);
-            });
+          onAppointmentCreated: (appointment) async {
+            // ✅ Перезагружаем список после создания
+            await _loadAppointments();
           },
         ),
       ),
@@ -241,12 +259,12 @@ class _PsychologistScheduleScreenState
     }
   }
 
-  void _showFullCalendar() {
+  void _showFullCalendar(List<DateTime> appointmentDates) {
     showFullCalendarModal(
       context: context,
       selectedDate: selectedDate,
       displayedMonth: displayedMonth,
-      allAppointments: allAppointments,
+      allAppointments: appointmentDates.map((date) => {'date': date}).toList(),
       onDateSelected: (date) {
         setState(() => selectedDate = date);
       },
@@ -256,25 +274,110 @@ class _PsychologistScheduleScreenState
     );
   }
 
-  void _showAllAppointments() {
+  void _showAllAppointments(List<dynamic> appointments) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _AllAppointmentsScreen(
-          appointments: allAppointments,
-          onDelete: (index) {
-            setState(() {
-              allAppointments.removeAt(index);
-            });
+          appointments: appointments,
+          onDelete: (index) async {
+            final appointment = appointments[index];
+            final appointmentProvider = Provider.of<AppointmentProvider>(
+              context,
+              listen: false,
+            );
+
+            await appointmentProvider.cancelAppointment(
+              appointment.id,
+              'Удалено психологом',
+            );
           },
         ),
       ),
     );
   }
+
+  // ✅ Вспомогательные методы
+  String _getDateString(DateTime date) {
+    final now = DateTime.now();
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
+      return 'сегодня';
+    } else if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day + 1) {
+      return 'завтра';
+    }
+
+    const months = [
+      'января',
+      'февраля',
+      'марта',
+      'апреля',
+      'мая',
+      'июня',
+      'июля',
+      'августа',
+      'сентября',
+      'октября',
+      'ноября',
+      'декабря',
+    ];
+
+    return '${date.day} ${months[date.month - 1]}';
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'PENDING':
+        return 'Ожидается';
+      case 'CONFIRMED':
+        return 'Подтверждено';
+      case 'COMPLETED':
+        return 'Завершено';
+      case 'CANCELLED':
+        return 'Отменено';
+      case 'NO_SHOW':
+        return 'Не явился';
+      default:
+        return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFFFF4E0);
+      case 'CONFIRMED':
+        return const Color(0xFFE3F2FD);
+      case 'COMPLETED':
+        return const Color(0xFFE8F5E9);
+      case 'CANCELLED':
+        return const Color(0xFFFFE8E8);
+      default:
+        return const Color(0xFFF5F5F5);
+    }
+  }
+
+  Color _getStatusTextColor(String status) {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFD4A747);
+      case 'CONFIRMED':
+        return const Color(0xFF1976D2);
+      case 'COMPLETED':
+        return const Color(0xFF4CAF50);
+      case 'CANCELLED':
+        return AppColors.error;
+      default:
+        return const Color(0xFF757575);
+    }
+  }
 }
 
 class _AllAppointmentsScreen extends StatelessWidget {
-  final List<Map<String, dynamic>> appointments;
+  final List<dynamic> appointments;
   final Function(int) onDelete;
 
   const _AllAppointmentsScreen({
@@ -303,16 +406,43 @@ class _AllAppointmentsScreen extends StatelessWidget {
         itemCount: appointments.length,
         itemBuilder: (context, index) {
           final appointment = appointments[index];
+
+          final appointmentData = {
+            'name': appointment.clientName,
+            'image':
+                appointment.clientAvatarUrl ??
+                'https://i.pravatar.cc/150?img=60',
+            'date': DateTime.parse(appointment.appointmentDate),
+            'time': appointment.startTime,
+            'status': _getStatusText(appointment.status),
+            'statusColor': _getStatusColor(appointment.status),
+            'statusTextColor': _getStatusTextColor(appointment.status),
+          };
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Dismissible(
-              key: Key(appointment['name'] + index.toString()),
+              key: Key('appointment_${appointment.id}'),
               direction: DismissDirection.endToStart,
+              confirmDismiss: (_) async {
+                if (appointment.status == 'COMPLETED' ||
+                    appointment.status == 'CANCELLED') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Нельзя удалить завершенную или отмененную запись',
+                      ),
+                    ),
+                  );
+                  return false;
+                }
+                return true;
+              },
               onDismissed: (_) {
                 onDelete(index);
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(const SnackBar(content: Text('Приём удалён')));
+                ).showSnackBar(const SnackBar(content: Text('Приём отменен')));
               },
               background: Container(
                 alignment: Alignment.centerRight,
@@ -323,11 +453,56 @@ class _AllAppointmentsScreen extends StatelessWidget {
                 ),
                 child: const Icon(Icons.delete, color: Colors.white),
               ),
-              child: AppointmentCardWidget(appointment: appointment),
+              child: AppointmentCardWidget(appointment: appointmentData),
             ),
           );
         },
       ),
     );
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'PENDING':
+        return 'Ожидается';
+      case 'CONFIRMED':
+        return 'Подтверждено';
+      case 'COMPLETED':
+        return 'Завершено';
+      case 'CANCELLED':
+        return 'Отменено';
+      default:
+        return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFFFF4E0);
+      case 'CONFIRMED':
+        return const Color(0xFFE3F2FD);
+      case 'COMPLETED':
+        return const Color(0xFFE8F5E9);
+      case 'CANCELLED':
+        return const Color(0xFFFFE8E8);
+      default:
+        return const Color(0xFFF5F5F5);
+    }
+  }
+
+  Color _getStatusTextColor(String status) {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFD4A747);
+      case 'CONFIRMED':
+        return const Color(0xFF1976D2);
+      case 'COMPLETED':
+        return const Color(0xFF4CAF50);
+      case 'CANCELLED':
+        return AppColors.error;
+      default:
+        return const Color(0xFF757575);
+    }
   }
 }

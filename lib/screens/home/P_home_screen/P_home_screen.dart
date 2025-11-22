@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_navbar.dart';
@@ -7,6 +8,8 @@ import '../../../widgets/psychologist/stats_card.dart';
 import '../../../widgets/psychologist/request_card.dart';
 import '../../../widgets/psychologist/session_card_p.dart';
 import '../../../widgets/psychologist/notifications_bottom_sheet.dart';
+import '../../../providers/appointment_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../P_ReportsScreen/PsychologistReportsScreen.dart';
 import '../../P_ScheduleScreen/PsychologistScheduleScreen.dart';
 import '../../chats/P_chats/P_chats_screen.dart';
@@ -58,65 +61,15 @@ class _HomeContentState extends State<_HomeContent>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<Map<String, dynamic>> pendingRequests = [
-    {
-      'id': 1,
-      'clientName': 'Анна Ким',
-      'clientImage': 'https://i.pravatar.cc/150?img=25',
-      'date': '21 октября',
-      'time': '15:00',
-      'format': 'video',
-      'requestDate': '20 окт, 14:30',
-      'issue': 'Работа с тревожностью',
-      'isFirstSession': true,
-    },
-    {
-      'id': 2,
-      'clientName': 'Дмитрий Петров',
-      'clientImage': 'https://i.pravatar.cc/150?img=12',
-      'date': '22 октября',
-      'time': '10:00',
-      'format': 'chat',
-      'requestDate': '20 окт, 16:15',
-      'issue': 'Проблемы в отношениях',
-      'isFirstSession': false,
-    },
-  ];
-
-  final List<Map<String, dynamic>> upcomingSessions = [
-    {
-      'id': 3,
-      'clientName': 'Елена Смирнова',
-      'clientImage': 'https://i.pravatar.cc/150?img=30',
-      'date': '20 октября',
-      'time': '18:00',
-      'format': 'video',
-      'status': 'soon',
-      'notes': 'Продолжение работы с самооценкой',
-    },
-    {
-      'id': 4,
-      'clientName': 'Максим Иванов',
-      'clientImage': 'https://i.pravatar.cc/150?img=15',
-      'date': '21 октября',
-      'time': '11:00',
-      'format': 'video',
-      'status': 'today',
-      'notes': 'Первая сессия',
-    },
-  ];
-
-  final Map<String, dynamic> stats = {
-    'todaySessions': 3,
-    'pendingRequests': 2,
-    'weekRevenue': 42000,
-    'rating': 4.9,
-  };
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // ✅ Загружаем реальные данные при инициализации
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAppointments();
+    });
   }
 
   @override
@@ -125,17 +78,62 @@ class _HomeContentState extends State<_HomeContent>
     super.dispose();
   }
 
+  // ✅ Загрузка записей с backend
+  Future<void> _loadAppointments() async {
+    final appointmentProvider = Provider.of<AppointmentProvider>(
+      context,
+      listen: false,
+    );
+    await appointmentProvider.loadPsychologistAppointments();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final appointmentProvider = Provider.of<AppointmentProvider>(context);
+    
+    // ✅ Получаем реальные данные из provider
+    final user = authProvider.user;
+    final allAppointments = appointmentProvider.appointments;
+    
+    // ✅ Фильтруем записи по статусу
+    final pendingRequests = allAppointments
+        .where((apt) => apt.status == 'PENDING')
+        .toList();
+    
+    final upcomingSessions = allAppointments
+        .where((apt) => apt.status == 'CONFIRMED')
+        .toList();
+
+    final todayAppointments = allAppointments
+        .where((apt) {
+          final now = DateTime.now();
+          final aptDate = DateTime.parse(apt.appointmentDate);
+          return aptDate.year == now.year &&
+              aptDate.month == now.month &&
+              aptDate.day == now.day;
+        })
+        .toList();
+
+    // ✅ Рассчитываем статистику
+    final stats = {
+      'todaySessions': todayAppointments.length,
+      'pendingRequests': pendingRequests.length,
+      'weekRevenue': _calculateWeekRevenue(allAppointments),
+      'rating': 4.9, // TODO: Получить с backend
+    };
+
     return SafeArea(
       child: Column(
         children: [
           PsychologistHeader(
-            name: 'Галия Аубакирова',
-            avatarUrl: 'https://i.pravatar.cc/150?img=5',
+            name: user?.fullName ?? 'Психолог',
+            avatarUrl: user?.avatarUrl ?? 'https://i.pravatar.cc/150?img=5',
             onNotificationsTap: _showNotificationsItem,
             hasNotifications: pendingRequests.isNotEmpty,
           ),
+          
+          // ✅ Статистика с реальными данными
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Row(
@@ -163,8 +161,7 @@ class _HomeContentState extends State<_HomeContent>
                 Expanded(
                   child: StatsCard(
                     label: 'Неделя',
-                    value:
-                        '${(stats['weekRevenue'] / 1000).toStringAsFixed(0)}к',
+                    value: '${((stats['weekRevenue'] as double) / 1000).toStringAsFixed(0)}к',
                     unit: '₸',
                     icon: Icons.wallet,
                     color: AppColors.primary,
@@ -173,21 +170,29 @@ class _HomeContentState extends State<_HomeContent>
               ],
             ),
           ),
+          
           const SizedBox(height: 24),
-          _buildTabBar(),
+          _buildTabBar(pendingRequests.length),
           const SizedBox(height: 20),
+          
+          // ✅ Показываем индикатор загрузки или контент
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildRequestsTab(), _buildSessionsTab()],
-            ),
+            child: appointmentProvider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildRequestsTab(pendingRequests),
+                      _buildSessionsTab(upcomingSessions),
+                    ],
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(int requestCount) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       height: 48,
@@ -227,7 +232,7 @@ class _HomeContentState extends State<_HomeContent>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text('Заявки'),
-                if (pendingRequests.isNotEmpty) ...[
+                if (requestCount > 0) ...[
                   const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -239,7 +244,7 @@ class _HomeContentState extends State<_HomeContent>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '${pendingRequests.length}',
+                      '$requestCount',
                       style: const TextStyle(
                         fontSize: 10,
                         color: Colors.white,
@@ -257,7 +262,7 @@ class _HomeContentState extends State<_HomeContent>
     );
   }
 
-  Widget _buildRequestsTab() {
+  Widget _buildRequestsTab(List<dynamic> pendingRequests) {
     if (pendingRequests.isEmpty) {
       return _buildEmptyState(
         'Нет новых заявок',
@@ -266,23 +271,41 @@ class _HomeContentState extends State<_HomeContent>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      itemCount: pendingRequests.length,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: RequestCard(
-            request: pendingRequests[index],
-            onAccept: () => _acceptRequest(pendingRequests[index]['id']),
-            onDecline: () => _declineRequest(pendingRequests[index]['id']),
-          ),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _loadAppointments,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        itemCount: pendingRequests.length,
+        itemBuilder: (context, index) {
+          final appointment = pendingRequests[index];
+          
+          // ✅ Преобразуем AppointmentModel в формат для RequestCard
+          final request = {
+            'id': appointment.id,
+            'clientName': appointment.clientName,
+            'clientImage': appointment.clientAvatarUrl ?? 'https://i.pravatar.cc/150?img=25',
+            'date': _formatDate(appointment.appointmentDate),
+            'time': appointment.startTime,
+            'format': appointment.format.toLowerCase(),
+            'requestDate': _formatDateTime(appointment.createdAt),
+            'issue': appointment.issueDescription ?? 'Консультация',
+            'isFirstSession': true, // TODO: Определить логику
+          };
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: RequestCard(
+              request: request,
+              onAccept: () => _acceptRequest(appointment.id),
+              onDecline: () => _declineRequest(appointment.id),
+            ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildSessionsTab() {
+  Widget _buildSessionsTab(List<dynamic> upcomingSessions) {
     if (upcomingSessions.isEmpty) {
       return _buildEmptyState(
         'Нет запланированных сессий',
@@ -291,18 +314,37 @@ class _HomeContentState extends State<_HomeContent>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      itemCount: upcomingSessions.length,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: SessionCardP(
-            session: upcomingSessions[index],
-            onChatTap: () {},
-          ),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _loadAppointments,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        itemCount: upcomingSessions.length,
+        itemBuilder: (context, index) {
+          final appointment = upcomingSessions[index];
+          
+          // ✅ Преобразуем AppointmentModel в формат для SessionCardP
+          final session = {
+            'id': appointment.id,
+            'clientName': appointment.clientName,
+            'clientImage': appointment.clientAvatarUrl ?? 'https://i.pravatar.cc/150?img=30',
+            'date': _formatDate(appointment.appointmentDate),
+            'time': appointment.startTime,
+            'format': appointment.format.toLowerCase(),
+            'status': _getSessionStatus(appointment.appointmentDate, appointment.startTime),
+            'notes': appointment.notes ?? appointment.issueDescription,
+          };
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: SessionCardP(
+              session: session,
+              onChatTap: () {
+                // TODO: Открыть чат с клиентом
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -350,61 +392,76 @@ class _HomeContentState extends State<_HomeContent>
     );
   }
 
-  void _acceptRequest(int requestId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.success.withOpacity(0.1),
-                shape: BoxShape.circle,
+  // ✅ Подтверждение заявки
+  Future<void> _acceptRequest(int requestId) async {
+    final appointmentProvider = Provider.of<AppointmentProvider>(
+      context,
+      listen: false,
+    );
+
+    final success = await appointmentProvider.confirmAppointment(requestId);
+
+    if (!mounted) return;
+
+    if (success) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_circle,
+                  color: AppColors.success,
+                  size: 28,
+                ),
               ),
-              child: Icon(
-                Icons.check_circle,
-                color: AppColors.success,
-                size: 28,
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Заявка подтверждена!',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
+            ],
+          ),
+          content: const Text(
+            'Клиент получит уведомление о подтверждении сессии.',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
               child: Text(
-                'Заявка подтверждена!',
-                style: TextStyle(fontSize: 18),
+                'Понятно',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
         ),
-        content: const Text(
-          'Клиент получит уведомление о подтверждении сессии.',
-          style: TextStyle(fontSize: 14),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(appointmentProvider.errorMessage ?? 'Ошибка подтверждения'),
+          backgroundColor: AppColors.error,
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(
-                () => pendingRequests.removeWhere((r) => r['id'] == requestId),
-              );
-            },
-            child: Text(
-              'Понятно',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
-  void _declineRequest(int requestId) {
-    showDialog(
+  // ✅ Отклонение заявки
+  Future<void> _declineRequest(int requestId) async {
+    final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -430,19 +487,14 @@ class _HomeContentState extends State<_HomeContent>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Отмена',
               style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(
-                () => pendingRequests.removeWhere((r) => r['id'] == requestId),
-              );
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: Text(
               'Отклонить',
               style: TextStyle(
@@ -454,6 +506,29 @@ class _HomeContentState extends State<_HomeContent>
         ],
       ),
     );
+
+    if (result != true || !mounted) return;
+
+    final appointmentProvider = Provider.of<AppointmentProvider>(
+      context,
+      listen: false,
+    );
+
+    final success = await appointmentProvider.cancelAppointment(
+      requestId,
+      'Отклонено психологом',
+    );
+
+    if (!mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(appointmentProvider.errorMessage ?? 'Ошибка отклонения'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   void _showNotificationsItem() {
@@ -465,14 +540,88 @@ class _HomeContentState extends State<_HomeContent>
     );
   }
 
-  String _getRequestsWord(int count) {
-    if (count % 10 == 1 && count % 100 != 11) {
-      return 'новая заявка';
-    } else if ([2, 3, 4].contains(count % 10) &&
-        ![12, 13, 14].contains(count % 100)) {
-      return 'новые заявки';
-    } else {
-      return 'новых заявок';
+  // ✅ Вспомогательные методы форматирования
+  String _formatDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      
+      if (date.year == now.year && date.month == now.month && date.day == now.day) {
+        return 'Сегодня';
+      } else if (date.year == now.year && date.month == now.month && date.day == now.day + 1) {
+        return 'Завтра';
+      }
+      
+      const months = [
+        'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+      ];
+      
+      return '${date.day} ${months[date.month - 1]}';
+    } catch (e) {
+      return dateStr;
     }
+  }
+
+  String _formatDateTime(String dateTimeStr) {
+    try {
+      final dt = DateTime.parse(dateTimeStr);
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      
+      if (diff.inMinutes < 60) {
+        return '${diff.inMinutes} мин назад';
+      } else if (diff.inHours < 24) {
+        return '${diff.inHours} ч назад';
+      } else {
+        return '${dt.day}.${dt.month}.${dt.year}';
+      }
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
+
+  String _getSessionStatus(String dateStr, String timeStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final time = timeStr.split(':');
+      final sessionDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        int.parse(time[0]),
+        int.parse(time[1]),
+      );
+      
+      final now = DateTime.now();
+      final diff = sessionDateTime.difference(now);
+      
+      if (diff.inMinutes < 30 && diff.inMinutes > 0) {
+        return 'soon';
+      } else if (date.year == now.year && date.month == now.month && date.day == now.day) {
+        return 'today';
+      }
+      return 'upcoming';
+    } catch (e) {
+      return 'upcoming';
+    }
+  }
+
+  double _calculateWeekRevenue(List<dynamic> appointments) {
+    final now = DateTime.now();
+    final weekAgo = now.subtract(const Duration(days: 7));
+    
+    return appointments
+        .where((apt) {
+          try {
+            final aptDate = DateTime.parse(apt.appointmentDate);
+            return aptDate.isAfter(weekAgo) && 
+                   aptDate.isBefore(now) &&
+                   apt.status == 'COMPLETED';
+          } catch (e) {
+            return false;
+          }
+        })
+        .fold(0.0, (sum, apt) => sum + (apt.price?.toDouble() ?? 0.0));
   }
 }
