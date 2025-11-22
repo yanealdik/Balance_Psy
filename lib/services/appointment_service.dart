@@ -10,7 +10,6 @@ class AppointmentService {
     try {
       print('📤 Creating appointment: $data');
 
-      // Валидация и форматирование данных
       final requestData = {
         'psychologistId': data['psychologistId'],
         'appointmentDate': data['appointmentDate'], // YYYY-MM-DD
@@ -99,6 +98,24 @@ class AppointmentService {
       print('✅ Appointment confirmed');
     } on DioException catch (e) {
       throw Exception(e.response?.data['message'] ?? 'Failed to confirm');
+    }
+  }
+
+  /// ✅ НОВЫЙ МЕТОД: Отклонить запись (PSYCHOLOGIST)
+  Future<void> rejectAppointment(int appointmentId, String reason) async {
+    try {
+      print('🔵 Rejecting appointment: $appointmentId');
+      final response = await _dio.put(
+        '/api/appointments/$appointmentId/reject',
+        data: {'reason': reason},
+      );
+
+      if (response.data['success'] != true) {
+        throw Exception(response.data['message'] ?? 'Failed to reject');
+      }
+      print('✅ Appointment rejected');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Failed to reject');
     }
   }
 

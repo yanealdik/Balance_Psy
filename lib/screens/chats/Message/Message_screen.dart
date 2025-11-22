@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../widgets/psychologist/psychologist_avatar.dart';
 
 /// Экран переписки с психологом
 class MessageScreen extends StatefulWidget {
   final String psychologistName;
-  final String psychologistImage;
+  final String? psychologistImage;
   final String psychologistStatus;
 
   const MessageScreen({
@@ -104,15 +105,13 @@ class _MessageScreenState extends State<MessageScreen> {
         title: Row(
           children: [
             // Аватар
-            Container(
+            SizedBox(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: AssetImage(widget.psychologistImage),
-                  fit: BoxFit.cover,
-                ),
+              child: buildPsychologistAvatar(
+                widget.psychologistImage,
+                widget.psychologistName,
+                radius: 20,
               ),
             ),
             const SizedBox(width: 12),
@@ -293,15 +292,13 @@ class _MessageScreenState extends State<MessageScreen> {
         children: [
           if (!isMe) ...[
             // Аватар психолога
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: NetworkImage(widget.psychologistImage),
-                  fit: BoxFit.cover,
-                ),
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: buildPsychologistAvatar(
+                widget.psychologistImage,
+                widget.psychologistName,
+                radius: 20,
               ),
             ),
             const SizedBox(width: 8),

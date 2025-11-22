@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import 'psychologist_avatar.dart';
 
 class PsychologistHeader extends StatelessWidget {
   final String name;
-  final String avatarUrl;
+  final String? avatarUrl;
   final VoidCallback onNotificationsTap;
   final bool hasNotifications;
 
@@ -42,10 +43,6 @@ class PsychologistHeader extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2.5),
-              image: DecorationImage(
-                image: NetworkImage(avatarUrl),
-                fit: BoxFit.cover,
-              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -53,6 +50,13 @@ class PsychologistHeader extends StatelessWidget {
                   offset: const Offset(0, 2),
                 ),
               ],
+            ),
+            child: ClipOval(
+              child: buildPsychologistAvatar(
+                avatarUrl,
+                name,
+                radius: 26,
+              ),
             ),
           ),
           const SizedBox(width: 14),

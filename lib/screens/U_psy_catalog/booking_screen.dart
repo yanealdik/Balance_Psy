@@ -4,10 +4,11 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../providers/appointment_provider.dart';
+import '../../widgets/psychologist/psychologist_avatar.dart';
 
 class BookingScreen extends StatefulWidget {
   final String psychologistName;
-  final String psychologistImage;
+  final String? psychologistImage;
   final String specialty;
   final double rating;
   final double hourlyRate;
@@ -122,17 +123,13 @@ class _BookingScreenState extends State<BookingScreen> {
       ),
       child: Row(
         children: [
-          Container(
+          SizedBox(
             width: 60,
             height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              image: DecorationImage(
-                image: widget.psychologistImage.startsWith('http')
-                    ? NetworkImage(widget.psychologistImage)
-                    : AssetImage(widget.psychologistImage) as ImageProvider,
-                fit: BoxFit.cover,
-              ),
+            child: buildPsychologistAvatar(
+              widget.psychologistImage,
+              widget.psychologistName,
+              radius: 30,
             ),
           ),
           const SizedBox(width: 16),

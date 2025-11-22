@@ -65,7 +65,7 @@ class _HomeContentState extends State<_HomeContent>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
+
     // ✅ Загружаем реальные данные при инициализации
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAppointments();
@@ -91,29 +91,27 @@ class _HomeContentState extends State<_HomeContent>
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final appointmentProvider = Provider.of<AppointmentProvider>(context);
-    
+
     // ✅ Получаем реальные данные из provider
     final user = authProvider.user;
     final allAppointments = appointmentProvider.appointments;
-    
+
     // ✅ Фильтруем записи по статусу
     final pendingRequests = allAppointments
         .where((apt) => apt.status == 'PENDING')
         .toList();
-    
+
     final upcomingSessions = allAppointments
         .where((apt) => apt.status == 'CONFIRMED')
         .toList();
 
-    final todayAppointments = allAppointments
-        .where((apt) {
-          final now = DateTime.now();
-          final aptDate = DateTime.parse(apt.appointmentDate);
-          return aptDate.year == now.year &&
-              aptDate.month == now.month &&
-              aptDate.day == now.day;
-        })
-        .toList();
+    final todayAppointments = allAppointments.where((apt) {
+      final now = DateTime.now();
+      final aptDate = DateTime.parse(apt.appointmentDate);
+      return aptDate.year == now.year &&
+          aptDate.month == now.month &&
+          aptDate.day == now.day;
+    }).toList();
 
     // ✅ Рассчитываем статистику
     final stats = {
@@ -128,11 +126,11 @@ class _HomeContentState extends State<_HomeContent>
         children: [
           PsychologistHeader(
             name: user?.fullName ?? 'Психолог',
-            avatarUrl: user?.avatarUrl ?? 'https://i.pravatar.cc/150?img=5',
+            avatarUrl: user?.avatarUrl,
             onNotificationsTap: _showNotificationsItem,
             hasNotifications: pendingRequests.isNotEmpty,
           ),
-          
+
           // ✅ Статистика с реальными данными
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -161,7 +159,8 @@ class _HomeContentState extends State<_HomeContent>
                 Expanded(
                   child: StatsCard(
                     label: 'Неделя',
-                    value: '${((stats['weekRevenue'] as double) / 1000).toStringAsFixed(0)}к',
+                    value:
+                        '${((stats['weekRevenue'] as double) / 1000).toStringAsFixed(0)}к',
                     unit: '₸',
                     icon: Icons.wallet,
                     color: AppColors.primary,
@@ -170,11 +169,11 @@ class _HomeContentState extends State<_HomeContent>
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
           _buildTabBar(pendingRequests.length),
           const SizedBox(height: 20),
-          
+
           // ✅ Показываем индикатор загрузки или контент
           Expanded(
             child: appointmentProvider.isLoading
@@ -278,18 +277,19 @@ class _HomeContentState extends State<_HomeContent>
         itemCount: pendingRequests.length,
         itemBuilder: (context, index) {
           final appointment = pendingRequests[index];
-          
-          // ✅ Преобразуем AppointmentModel в формат для RequestCard
+
           final request = {
             'id': appointment.id,
             'clientName': appointment.clientName,
-            'clientImage': appointment.clientAvatarUrl ?? 'https://i.pravatar.cc/150?img=25',
+            'clientImage':
+                appointment.clientAvatarUrl ??
+                'https://i.pravatar.cc/150?img=25',
             'date': _formatDate(appointment.appointmentDate),
             'time': appointment.startTime,
             'format': appointment.format.toLowerCase(),
             'requestDate': _formatDateTime(appointment.createdAt),
             'issue': appointment.issueDescription ?? 'Консультация',
-            'isFirstSession': true, // TODO: Определить логику
+            'isFirstSession': true,
           };
 
           return Padding(
@@ -297,7 +297,7 @@ class _HomeContentState extends State<_HomeContent>
             child: RequestCard(
               request: request,
               onAccept: () => _acceptRequest(appointment.id),
-              onDecline: () => _declineRequest(appointment.id),
+              onDecline: () => _declineRequest(appointment.id), // ✅ Подключен
             ),
           );
         },
@@ -321,16 +321,21 @@ class _HomeContentState extends State<_HomeContent>
         itemCount: upcomingSessions.length,
         itemBuilder: (context, index) {
           final appointment = upcomingSessions[index];
-          
+
           // ✅ Преобразуем AppointmentModel в формат для SessionCardP
           final session = {
             'id': appointment.id,
             'clientName': appointment.clientName,
-            'clientImage': appointment.clientAvatarUrl ?? 'https://i.pravatar.cc/150?img=30',
+            'clientImage':
+                appointment.clientAvatarUrl ??
+                'https://i.pravatar.cc/150?img=30',
             'date': _formatDate(appointment.appointmentDate),
             'time': appointment.startTime,
             'format': appointment.format.toLowerCase(),
-            'status': _getSessionStatus(appointment.appointmentDate, appointment.startTime),
+            'status': _getSessionStatus(
+              appointment.appointmentDate,
+              appointment.startTime,
+            ),
             'notes': appointment.notes ?? appointment.issueDescription,
           };
 
@@ -407,7 +412,9 @@ class _HomeContentState extends State<_HomeContent>
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: [
               Container(
@@ -452,7 +459,9 @@ class _HomeContentState extends State<_HomeContent>
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(appointmentProvider.errorMessage ?? 'Ошибка подтверждения'),
+          content: Text(
+            appointmentProvider.errorMessage ?? 'Ошибка подтверждения',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -460,6 +469,7 @@ class _HomeContentState extends State<_HomeContent>
   }
 
   // ✅ Отклонение заявки
+  /// ✅ Отклонение заявки
   Future<void> _declineRequest(int requestId) async {
     final result = await showDialog<bool>(
       context: context,
@@ -514,7 +524,7 @@ class _HomeContentState extends State<_HomeContent>
       listen: false,
     );
 
-    final success = await appointmentProvider.cancelAppointment(
+    final success = await appointmentProvider.rejectAppointment(
       requestId,
       'Отклонено психологом',
     );
@@ -524,7 +534,9 @@ class _HomeContentState extends State<_HomeContent>
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(appointmentProvider.errorMessage ?? 'Ошибка отклонения'),
+          content: Text(
+            appointmentProvider.errorMessage ?? 'Ошибка отклонения',
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -545,18 +557,32 @@ class _HomeContentState extends State<_HomeContent>
     try {
       final date = DateTime.parse(dateStr);
       final now = DateTime.now();
-      
-      if (date.year == now.year && date.month == now.month && date.day == now.day) {
+
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
         return 'Сегодня';
-      } else if (date.year == now.year && date.month == now.month && date.day == now.day + 1) {
+      } else if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day + 1) {
         return 'Завтра';
       }
-      
+
       const months = [
-        'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+        'января',
+        'февраля',
+        'марта',
+        'апреля',
+        'мая',
+        'июня',
+        'июля',
+        'августа',
+        'сентября',
+        'октября',
+        'ноября',
+        'декабря',
       ];
-      
+
       return '${date.day} ${months[date.month - 1]}';
     } catch (e) {
       return dateStr;
@@ -568,7 +594,7 @@ class _HomeContentState extends State<_HomeContent>
       final dt = DateTime.parse(dateTimeStr);
       final now = DateTime.now();
       final diff = now.difference(dt);
-      
+
       if (diff.inMinutes < 60) {
         return '${diff.inMinutes} мин назад';
       } else if (diff.inHours < 24) {
@@ -592,13 +618,15 @@ class _HomeContentState extends State<_HomeContent>
         int.parse(time[0]),
         int.parse(time[1]),
       );
-      
+
       final now = DateTime.now();
       final diff = sessionDateTime.difference(now);
-      
+
       if (diff.inMinutes < 30 && diff.inMinutes > 0) {
         return 'soon';
-      } else if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      } else if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
         return 'today';
       }
       return 'upcoming';
@@ -610,14 +638,14 @@ class _HomeContentState extends State<_HomeContent>
   double _calculateWeekRevenue(List<dynamic> appointments) {
     final now = DateTime.now();
     final weekAgo = now.subtract(const Duration(days: 7));
-    
+
     return appointments
         .where((apt) {
           try {
             final aptDate = DateTime.parse(apt.appointmentDate);
-            return aptDate.isAfter(weekAgo) && 
-                   aptDate.isBefore(now) &&
-                   apt.status == 'COMPLETED';
+            return aptDate.isAfter(weekAgo) &&
+                aptDate.isBefore(now) &&
+                apt.status == 'COMPLETED';
           } catch (e) {
             return false;
           }

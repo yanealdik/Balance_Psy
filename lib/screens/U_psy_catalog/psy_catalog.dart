@@ -4,6 +4,7 @@ import '../../theme/app_text_styles.dart';
 import '../../services/psychologist_service.dart';
 import '../../models/psychologist_model.dart';
 import 'psychologist_profile_screen.dart';
+import '../../widgets/psychologist/psychologist_avatar.dart';
 
 class PsychologistsScreen extends StatefulWidget {
   const PsychologistsScreen({super.key});
@@ -297,28 +298,14 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
               children: [
                 Stack(
                   children: [
-                    Container(
+                    SizedBox(
                       width: 60,
                       height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: psychologist.avatarUrl != null
-                            ? DecorationImage(
-                                image: NetworkImage(psychologist.avatarUrl!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                        color: psychologist.avatarUrl == null
-                            ? AppColors.primary.withOpacity(0.2)
-                            : null,
+                      child: buildPsychologistAvatar(
+                        psychologist.avatarUrl,
+                        psychologist.fullName,
+                        radius: 30,
                       ),
-                      child: psychologist.avatarUrl == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 30,
-                              color: AppColors.primary,
-                            )
-                          : null,
                     ),
                     if (psychologist.isAvailable)
                       Positioned(

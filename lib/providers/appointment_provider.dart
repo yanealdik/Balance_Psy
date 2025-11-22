@@ -100,6 +100,23 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
+  /// ✅ НОВЫЙ МЕТОД: Отклонить запись (психолог)
+  Future<bool> rejectAppointment(int appointmentId, String reason) async {
+    try {
+      await _service.rejectAppointment(appointmentId, reason);
+
+      // Перезагружаем список
+      await loadPsychologistAppointments();
+
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// ✅ Отменить запись
   Future<bool> cancelAppointment(int appointmentId, String reason) async {
     try {

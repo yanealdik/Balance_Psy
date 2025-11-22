@@ -4,6 +4,7 @@ import '../../theme/app_text_styles.dart';
 import '../../models/psychologist_model.dart';
 import '../../widgets/custom_button.dart';
 import 'booking_screen.dart';
+import '../../widgets/psychologist/psychologist_avatar.dart';
 
 class PsychologistProfileScreen extends StatefulWidget {
   final PsychologistModel psychologist;
@@ -85,27 +86,29 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen>
         background: Stack(
           fit: StackFit.expand,
           children: [
-            widget.psychologist.avatarUrl != null
+            widget.psychologist.avatarUrl?.isNotEmpty == true
                 ? Image.network(
                     widget.psychologist.avatarUrl!,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         color: AppColors.primary.withOpacity(0.5),
-                        child: const Icon(
-                          Icons.person,
-                          size: 80,
-                          color: Colors.white,
+                        alignment: Alignment.center,
+                        child: buildPsychologistAvatar(
+                          widget.psychologist.avatarUrl,
+                          widget.psychologist.fullName,
+                          radius: 48,
                         ),
                       );
                     },
                   )
                 : Container(
+                    alignment: Alignment.center,
                     color: AppColors.primary.withOpacity(0.5),
-                    child: const Icon(
-                      Icons.person,
-                      size: 80,
-                      color: Colors.white,
+                    child: buildPsychologistAvatar(
+                      widget.psychologist.avatarUrl,
+                      widget.psychologist.fullName,
+                      radius: 48,
                     ),
                   ),
             Container(
@@ -435,7 +438,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen>
                 builder: (context) => BookingScreen(
                   psychologistId: widget.psychologist.id,
                   psychologistName: widget.psychologist.fullName,
-                  psychologistImage: widget.psychologist.avatarUrl ?? '',
+                  psychologistImage: widget.psychologist.avatarUrl,
                   specialty: widget.psychologist.specialization,
                   rating: widget.psychologist.rating,
                   hourlyRate: widget.psychologist.hourlyRate.toDouble(),
