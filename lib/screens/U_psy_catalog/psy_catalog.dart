@@ -14,14 +14,19 @@ class PsychologistsScreen extends StatefulWidget {
 
 class _PsychologistsScreenState extends State<PsychologistsScreen> {
   final PsychologistService _service = PsychologistService();
-  
+
   int selectedCategory = 0;
   String searchQuery = '';
   bool _isLoading = false;
   String? _errorMessage;
   List<PsychologistModel> _psychologists = [];
 
-  final List<String> categories = ['Все', 'Детские', 'Семейные', 'Подростковые'];
+  final List<String> categories = [
+    'Все',
+    'Детские',
+    'Семейные',
+    'Подростковые',
+  ];
 
   @override
   void initState() {
@@ -36,12 +41,23 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
     });
 
     try {
+      print('📞 Loading psychologists from API...');
+
       final psychologists = await _service.getAvailablePsychologists();
+
+      print('✅ Loaded ${psychologists.length} psychologists');
+
+      if (!mounted) return;
+
       setState(() {
         _psychologists = psychologists;
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ Error loading psychologists: $e');
+
+      if (!mounted) return;
+
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
@@ -50,14 +66,27 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
   }
 
   List<PsychologistModel> get filteredPsychologists {
-    return _psychologists.where((psy) {
-      final matchesSearch = psy.fullName.toLowerCase().contains(
-        searchQuery.toLowerCase(),
-      ) || psy.specialization.toLowerCase().contains(
-        searchQuery.toLowerCase(),
-      );
-      return matchesSearch;
-    }).toList();
+    var filtered = _psychologists;
+
+    // Фильтр по категории
+    if (selectedCategory != 0) {
+      final category = categories[selectedCategory].toLowerCase();
+      filtered = filtered.where((psy) {
+        return psy.specialization.toLowerCase().contains(category);
+      }).toList();
+    }
+
+    // Фильтр по поиску
+    if (searchQuery.isNotEmpty) {
+      filtered = filtered.where((psy) {
+        final query = searchQuery.toLowerCase();
+        return psy.fullName.toLowerCase().contains(query) ||
+            psy.specialization.toLowerCase().contains(query) ||
+            psy.bio.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   @override
@@ -68,14 +97,26 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Заголовок
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Text(
-                'Каталог психологов',
-                style: AppTextStyles.h2.copyWith(fontSize: 28),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Каталог психологов',
+                    style: AppTextStyles.h2.copyWith(fontSize: 28),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _loadPsychologists,
+                    tooltip: 'Обновить',
+                  ),
+                ],
               ),
             ),
 
+            // Поиск
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _buildSearchBar(),
@@ -83,6 +124,7 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
 
             const SizedBox(height: 16),
 
+            // Категории
             SizedBox(
               height: 44,
               child: ListView.builder(
@@ -100,31 +142,59 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
 
             const SizedBox(height: 24),
 
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
-                      ? _buildErrorState()
-                      : filteredPsychologists.isEmpty
-                          ? _buildEmptyState()
-                          : RefreshIndicator(
-                              onRefresh: _loadPsychologists,
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                itemCount: filteredPsychologists.length,
-                                itemBuilder: (context, index) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
-                                    child: _buildPsychologistCard(
-                                      filteredPsychologists[index],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-            ),
+            // Список психологов
+            Expanded(child: _buildContent()),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Загрузка психологов...'),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return _buildErrorState();
+    }
+
+    if (_psychologists.isEmpty) {
+      return _buildEmptyState(
+        'Психологи не зарегистрированы',
+        'В базе данных пока нет психологов.\nПопросите психологов зарегистрироваться.',
+      );
+    }
+
+    final filtered = filteredPsychologists;
+
+    if (filtered.isEmpty) {
+      return _buildEmptyState(
+        'Психологи не найдены',
+        'Попробуйте изменить фильтры или поисковый запрос',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadPsychologists,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _buildPsychologistCard(filtered[index]),
+          );
+        },
       ),
     );
   }
@@ -146,7 +216,9 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
         onChanged: (value) => setState(() => searchQuery = value),
         decoration: InputDecoration(
           hintText: 'Поиск психолога...',
-          hintStyle: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+          hintStyle: AppTextStyles.body2.copyWith(
+            color: AppColors.textSecondary,
+          ),
           prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
           suffixIcon: searchQuery.isNotEmpty
               ? IconButton(
@@ -155,7 +227,10 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
       ),
     );
@@ -193,11 +268,15 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PsychologistProfileScreen(
-              psychologist: psychologist,
-            ),
+            builder: (context) =>
+                PsychologistProfileScreen(psychologist: psychologist),
           ),
-        );
+        ).then((value) {
+          // Обновляем список если была создана запись
+          if (value == true) {
+            _loadPsychologists();
+          }
+        });
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -234,7 +313,11 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
                             : null,
                       ),
                       child: psychologist.avatarUrl == null
-                          ? const Icon(Icons.person, size: 30, color: AppColors.primary)
+                          ? const Icon(
+                              Icons.person,
+                              size: 30,
+                              color: AppColors.primary,
+                            )
                           : null,
                     ),
                     if (psychologist.isAvailable)
@@ -247,7 +330,10 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.success,
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.cardBackground, width: 2),
+                            border: Border.all(
+                              color: AppColors.cardBackground,
+                              width: 2,
+                            ),
                           ),
                         ),
                       ),
@@ -258,9 +344,21 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        psychologist.fullName,
-                        style: AppTextStyles.h3.copyWith(fontSize: 17),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              psychologist.fullName,
+                              style: AppTextStyles.h3.copyWith(fontSize: 17),
+                            ),
+                          ),
+                          if (psychologist.isVerified)
+                            const Icon(
+                              Icons.verified,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -292,7 +390,11 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
                   style: AppTextStyles.body3.copyWith(fontSize: 12),
                 ),
                 const SizedBox(width: 16),
-                const Icon(Icons.work_outline, size: 16, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.work_outline,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${psychologist.experienceYears} лет',
@@ -314,37 +416,96 @@ class _PsychologistsScreenState extends State<PsychologistsScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(String title, String message) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 80, color: AppColors.textTertiary.withOpacity(0.5)),
-          const SizedBox(height: 16),
-          Text('Психологи не найдены', style: AppTextStyles.h3.copyWith(fontSize: 18, color: AppColors.textSecondary)),
-          const SizedBox(height: 8),
-          Text('Попробуйте изменить запрос', style: AppTextStyles.body2.copyWith(fontSize: 14, color: AppColors.textTertiary)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 80,
+              color: AppColors.textTertiary.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: AppTextStyles.h3.copyWith(
+                fontSize: 18,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: AppTextStyles.body2.copyWith(
+                fontSize: 14,
+                color: AppColors.textTertiary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadPsychologists,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Обновить'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildErrorState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 80, color: AppColors.error.withOpacity(0.5)),
-          const SizedBox(height: 16),
-          Text('Ошибка загрузки', style: AppTextStyles.h3.copyWith(fontSize: 18)),
-          const SizedBox(height: 8),
-          Text(_errorMessage!, style: AppTextStyles.body2),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadPsychologists,
-            child: const Text('Повторить'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: AppColors.error.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Ошибка загрузки',
+              style: AppTextStyles.h3.copyWith(fontSize: 18),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              style: AppTextStyles.body2,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadPsychologists,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Повторить'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
