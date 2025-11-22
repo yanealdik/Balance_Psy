@@ -16,7 +16,7 @@ class BookingScreen extends StatefulWidget {
     required this.psychologistName,
     required this.psychologistImage,
     required this.specialty,
-    required this.rating,
+    required this.rating, required double hourlyRate, required int psychologistId,
   });
 
   @override

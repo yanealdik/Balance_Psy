@@ -6,15 +6,19 @@ class AppointmentModel {
   final int psychologistId;
   final String psychologistName;
   final String? psychologistAvatarUrl;
-  final String appointmentDate;
-  final String startTime;
+  final String appointmentDate; // LocalDate в формате YYYY-MM-DD
+  final String startTime; // LocalTime в формате HH:mm
   final String endTime;
-  final String format;
-  final String status;
+  final String format; // video, chat, phone
+  final String status; // PENDING, CONFIRMED, COMPLETED, CANCELLED
   final String? issueDescription;
   final String? notes;
   final double price;
   final String createdAt;
+  final String? confirmedAt;
+  final String? completedAt;
+  final String? cancelledAt;
+  final String? cancellationReason;
 
   AppointmentModel({
     required this.id,
@@ -33,6 +37,10 @@ class AppointmentModel {
     this.notes,
     required this.price,
     required this.createdAt,
+    this.confirmedAt,
+    this.completedAt,
+    this.cancelledAt,
+    this.cancellationReason,
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +61,41 @@ class AppointmentModel {
       notes: json['notes'] as String?,
       price: (json['price'] as num).toDouble(),
       createdAt: json['createdAt'] as String,
+      confirmedAt: json['confirmedAt'] as String?,
+      completedAt: json['completedAt'] as String?,
+      cancelledAt: json['cancelledAt'] as String?,
+      cancellationReason: json['cancellationReason'] as String?,
     );
+  }
+
+  // Вспомогательные методы для UI
+  String get statusDisplayName {
+    switch (status) {
+      case 'PENDING':
+        return 'Ожидается';
+      case 'CONFIRMED':
+        return 'Подтверждено';
+      case 'COMPLETED':
+        return 'Завершено';
+      case 'CANCELLED':
+        return 'Отменено';
+      case 'NO_SHOW':
+        return 'Не явился';
+      default:
+        return status;
+    }
+  }
+
+  String get formatDisplayName {
+    switch (format.toLowerCase()) {
+      case 'video':
+        return 'Видео-звонок';
+      case 'chat':
+        return 'Чат';
+      case 'phone':
+        return 'Телефон';
+      default:
+        return format;
+    }
   }
 }
