@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/appointment_model.dart';
 import '../services/appointment_service.dart';
+import '../models/session_format.dart';
 
 class AppointmentProvider with ChangeNotifier {
   final AppointmentService _service = AppointmentService();
@@ -55,7 +56,7 @@ class AppointmentProvider with ChangeNotifier {
     required String date,
     required String startTime,
     required String endTime,
-    required String format,
+    required SessionFormat format,
     String? issueDescription,
   }) async {
     try {

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../core/api/api_client.dart';
 import '../models/appointment_model.dart';
+import '../models/session_format.dart';
 
 class AppointmentService {
   final Dio _dio = ApiClient.instance;
@@ -15,7 +16,7 @@ class AppointmentService {
         'appointmentDate': data['appointmentDate'], // YYYY-MM-DD
         'startTime': data['startTime'], // HH:mm
         'endTime': data['endTime'], // HH:mm
-        'format': data['format'], // video, chat, phone
+        'format': sessionFormatToApi(data['format'] as SessionFormat),
         'issueDescription': data['issueDescription'] ?? '',
       };
 

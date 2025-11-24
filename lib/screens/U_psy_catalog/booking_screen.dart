@@ -5,6 +5,7 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../providers/appointment_provider.dart';
 import '../../widgets/psychologist/psychologist_avatar.dart';
+import '../../models/session_format.dart';
 
 class BookingScreen extends StatefulWidget {
   final String psychologistName;
@@ -31,7 +32,7 @@ class BookingScreen extends StatefulWidget {
 class _BookingScreenState extends State<BookingScreen> {
   DateTime selectedDate = DateTime.now();
   String? selectedTime;
-  String selectedFormat = 'video';
+  SessionFormat selectedFormat = SessionFormat.video;
   String selectedIssue = '';
   bool _isCreating = false;
 
@@ -162,16 +163,16 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _buildFormatSelector() {
     return Row(
       children: [
-        Expanded(child: _buildFormatOption('video', 'Видео-звонок', Icons.videocam_outlined)),
+        Expanded(child: _buildFormatOption(SessionFormat.video, 'Видео-звонок', Icons.videocam_outlined)),
         const SizedBox(width: 12),
-        Expanded(child: _buildFormatOption('chat', 'Чат', Icons.chat_bubble_outline)),
+        Expanded(child: _buildFormatOption(SessionFormat.chat, 'Чат', Icons.chat_bubble_outline)),
         const SizedBox(width: 12),
-        Expanded(child: _buildFormatOption('phone', 'Телефон', Icons.phone_outlined)),
+        Expanded(child: _buildFormatOption(SessionFormat.audio, 'Телефон', Icons.phone_outlined)),
       ],
     );
   }
 
-  Widget _buildFormatOption(String format, String label, IconData icon) {
+  Widget _buildFormatOption(SessionFormat format, String label, IconData icon) {
     final isSelected = selectedFormat == format;
     return GestureDetector(
       onTap: () => setState(() => selectedFormat = format),
