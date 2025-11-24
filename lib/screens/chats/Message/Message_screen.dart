@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
+import 'dart:async';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../providers/chat_provider.dart';
+import '../../../models/message_model.dart';
 import '../../../widgets/psychologist/psychologist_avatar.dart';
 
-/// Экран переписки с психологом
 class MessageScreen extends StatefulWidget {
-  final String psychologistName;
-  final String? psychologistImage;
-  final String psychologistStatus;
+  final int chatRoomId;
+  final String partnerName;
+  final String? partnerImage;
+  final bool isOnline;
 
   const MessageScreen({
     super.key,
-    required this.psychologistName,
-    required this.psychologistImage,
-    required this.psychologistStatus,
+    required this.chatRoomId,
+    required this.partnerName,
+    this.partnerImage,
+    this.isOnline = false,
   });
 
   @override
@@ -24,44 +34,33 @@ class MessageScreen extends StatefulWidget {
 class _MessageScreenState extends State<MessageScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<Map<String, dynamic>> _messages = [
-    {
-      'text': 'Здравствуйте! Как ваше настроение сегодня?',
-      'isMe': false,
-      'time': '14:23',
-    },
-    {
-      'text': 'Здравствуйте! Чувствую себя немного уставшим',
-      'isMe': true,
-      'time': '14:25',
-    },
-    {
-      'text':
-          'Понимаю. Давайте обсудим, что вас беспокоит. Вы можете рассказать подробнее?',
-      'isMe': false,
-      'time': '14:26',
-    },
-  ];
+  final ImagePicker _imagePicker = ImagePicker();
+  final AudioRecorder _audioRecorder = AudioRecorder();
+
+  bool _isRecording = false;
+  Timer? _recordingTimer;
+  int _recordingDuration = 0;
+  String? _recordingPath;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMessages();
+    });
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _recordingTimer?.cancel();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-
-    setState(() {
-      _messages.add({
-        'text': _messageController.text,
-        'isMe': true,
-        'time': TimeOfDay.now().format(context),
-      });
-    });
-
-    _messageController.clear();
+  Future<void> _loadMessages() async {
+    await context.read<ChatProvider>().loadMessages(widget.chatRoomId);
     _scrollToBottom();
   }
 
@@ -77,202 +76,246 @@ class _MessageScreenState extends State<MessageScreen> {
     });
   }
 
-  Future<void> _launchZvondaSession() async {
-    final Uri url = Uri.parse('https://zvonda.kz');
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Не удалось открыть Zvonda.kz'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+  // ✅ Отправка текста
+  Future<void> _sendTextMessage() async {
+    if (_messageController.text.trim().isEmpty) return;
+
+    final text = _messageController.text;
+    _messageController.clear();
+
+    final success = await context.read<ChatProvider>().sendMessage(
+      widget.chatRoomId,
+      text,
+    );
+
+    if (success) {
+      _scrollToBottom();
+    } else {
+      _showError('Не удалось отправить сообщение');
+    }
+  }
+
+  // ✅ Выбор и отправка картинки
+  Future<void> _pickAndSendImage() async {
+    final XFile? image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+
+    if (image != null) {
+      final success = await context.read<ChatProvider>().uploadFile(
+        widget.chatRoomId,
+        image.path,
+        'image',
+      );
+
+      if (success) {
+        _scrollToBottom();
+      } else {
+        _showError('Не удалось отправить изображение');
       }
     }
+  }
+
+  // ✅ Выбор и отправка файла
+  Future<void> _pickAndSendFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final success = await context.read<ChatProvider>().uploadFile(
+        widget.chatRoomId,
+        result.files.single.path!,
+        'file',
+      );
+
+      if (success) {
+        _scrollToBottom();
+      } else {
+        _showError('Не удалось отправить файл');
+      }
+    }
+  }
+
+  // ✅ Запись голосового
+  Future<void> _startRecording() async {
+    if (await _audioRecorder.hasPermission()) {
+      final path =
+          '${Directory.systemTemp.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _audioRecorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path,
+      );
+
+      setState(() {
+        _isRecording = true;
+        _recordingDuration = 0;
+        _recordingPath = path;
+      });
+
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          _recordingDuration++;
+        });
+      });
+    } else {
+      _showError('Нет разрешения на запись аудио');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    await _audioRecorder.stop();
+    _recordingTimer?.cancel();
+
+    setState(() {
+      _isRecording = false;
+    });
+
+    if (_recordingPath != null && _recordingDuration >= 1) {
+      final success = await context.read<ChatProvider>().uploadVoice(
+        widget.chatRoomId,
+        _recordingPath!,
+        _recordingDuration,
+      );
+
+      if (success) {
+        _scrollToBottom();
+      } else {
+        _showError('Не удалось отправить голосовое');
+      }
+    }
+
+    setState(() {
+      _recordingPath = null;
+      _recordingDuration = 0;
+    });
+  }
+
+  // ✅ Открыть Zvonda
+  Future<void> _openZvondaSession() async {
+    final zvondaUrl = await context.read<ChatProvider>().getZvondaUrl(
+      widget.chatRoomId,
+    );
+
+    if (zvondaUrl != null) {
+      final Uri url = Uri.parse(zvondaUrl);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        _showError('Не удалось открыть Zvonda.kz');
+      }
+    } else {
+      _showError('Ссылка на видеосессию недоступна');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.cardBackground,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            // Аватар
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: buildPsychologistAvatar(
-                widget.psychologistImage,
-                widget.psychologistName,
-                radius: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Имя и статус
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.psychologistName,
-                    style: AppTextStyles.h3.copyWith(fontSize: 16),
-                  ),
-                  Text(
-                    widget.psychologistStatus,
-                    style: AppTextStyles.body2.copyWith(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          // Кнопка видеозвонка через Zvonda
-          IconButton(
-            icon: const Icon(Icons.videocam, color: AppColors.primary),
-            onPressed: _launchZvondaSession,
-            tooltip: 'Начать сеанс на Zvonda.kz',
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: Column(
         children: [
           // Баннер Zvonda
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            color: AppColors.primary.withOpacity(0.1),
-            child: Row(
-              children: [
-                const Icon(Icons.videocam, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Видеосеансы проходят через Zvonda.kz',
-                    style: AppTextStyles.body2.copyWith(fontSize: 13),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _launchZvondaSession,
-                  child: Text(
-                    'Подключиться',
-                    style: AppTextStyles.body2.copyWith(
-                      fontSize: 13,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildZvondaBanner(),
 
           // Список сообщений
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(20),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildMessageBubble(
-                  message['text'],
-                  message['isMe'],
-                  message['time'],
-                );
-              },
-            ),
-          ),
+          Expanded(child: _buildMessagesList()),
+
+          // Панель записи голосового
+          if (_isRecording) _buildRecordingPanel(),
 
           // Поле ввода
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: AppColors.cardBackground,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 8,
-                  offset: Offset(0, -2),
+          if (!_isRecording) _buildInputPanel(),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.cardBackground,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: Row(
+        children: [
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: buildPsychologistAvatar(
+              widget.partnerImage,
+              widget.partnerName,
+              radius: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.partnerName,
+                  style: AppTextStyles.h3.copyWith(fontSize: 16),
+                ),
+                Text(
+                  widget.isOnline ? 'онлайн' : 'не в сети',
+                  style: AppTextStyles.body2.copyWith(
+                    fontSize: 12,
+                    color: widget.isOnline
+                        ? AppColors.success
+                        : AppColors.textTertiary,
+                  ),
                 ),
               ],
             ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  // Кнопка прикрепления
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: AppColors.background,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.attach_file,
-                        color: AppColors.textSecondary,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        // TODO: Прикрепить файл
-                      },
-                    ),
-                  ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.videocam, color: AppColors.primary),
+          onPressed: _openZvondaSession,
+          tooltip: 'Начать видеосессию',
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
 
-                  const SizedBox(width: 12),
-
-                  // Поле ввода
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: InputDecoration(
-                          hintText: 'Написать сообщение...',
-                          hintStyle: AppTextStyles.body2.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                          border: InputBorder.none,
-                        ),
-                        maxLines: null,
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Кнопка отправки
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.send,
-                        color: AppColors.textWhite,
-                        size: 20,
-                      ),
-                      onPressed: _sendMessage,
-                    ),
-                  ),
-                ],
+  Widget _buildZvondaBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      color: AppColors.primary.withOpacity(0.1),
+      child: Row(
+        children: [
+          const Icon(Icons.videocam, color: AppColors.primary, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Видеосеансы проходят через Zvonda.kz',
+              style: AppTextStyles.body2.copyWith(fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: _openZvondaSession,
+            child: Text(
+              'Подключиться',
+              style: AppTextStyles.body2.copyWith(
+                fontSize: 13,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -281,7 +324,42 @@ class _MessageScreenState extends State<MessageScreen> {
     );
   }
 
-  Widget _buildMessageBubble(String text, bool isMe, String time) {
+  Widget _buildMessagesList() {
+    return Consumer<ChatProvider>(
+      builder: (context, provider, _) {
+        if (provider.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
+        }
+
+        if (provider.messages.isEmpty) {
+          return Center(
+            child: Text(
+              'Начните общение',
+              style: AppTextStyles.body1.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(20),
+          itemCount: provider.messages.length,
+          itemBuilder: (context, index) {
+            final message = provider.messages[index];
+            final isMe =
+                message.senderId == provider.currentUserId; // TODO: Implement
+            return _buildMessageBubble(message, isMe);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMessageBubble(MessageModel message, bool isMe) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -291,19 +369,17 @@ class _MessageScreenState extends State<MessageScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            // Аватар психолога
             SizedBox(
               width: 40,
               height: 40,
               child: buildPsychologistAvatar(
-                widget.psychologistImage,
-                widget.psychologistName,
+                message.senderImage,
+                message.senderName,
                 radius: 20,
               ),
             ),
             const SizedBox(width: 8),
           ],
-          // Сообщение
           Flexible(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -323,33 +399,378 @@ class _MessageScreenState extends State<MessageScreen> {
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    text,
-                    style: AppTextStyles.body1.copyWith(
-                      fontSize: 15,
-                      color: isMe ? AppColors.textWhite : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    time,
-                    style: AppTextStyles.body2.copyWith(
-                      fontSize: 11,
-                      color: isMe
-                          ? AppColors.textWhite.withOpacity(0.7)
-                          : AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
+              child: _buildMessageContent(message, isMe),
             ),
           ),
           if (isMe) const SizedBox(width: 8),
         ],
       ),
+    );
+  }
+
+  Widget _buildMessageContent(MessageModel message, bool isMe) {
+    final textColor = isMe ? AppColors.textWhite : AppColors.textPrimary;
+
+    switch (message.type.toLowerCase()) {
+      case 'voice':
+        return _VoiceMessagePlayer(
+          url: message.attachmentUrl ?? '',
+          duration: message.voiceDuration ?? 0,
+          isMe: isMe,
+        );
+
+      case 'image':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                message.attachmentUrl ?? '',
+                width: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+              ),
+            ),
+            const SizedBox(height: 4),
+            _buildMessageTime(message, isMe),
+          ],
+        );
+
+      case 'file':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.attach_file, color: textColor, size: 20),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    message.attachmentName ?? 'Файл',
+                    style: AppTextStyles.body2.copyWith(
+                      color: textColor,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            _buildMessageTime(message, isMe),
+          ],
+        );
+
+      default:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message.text,
+              style: AppTextStyles.body1.copyWith(
+                fontSize: 15,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            _buildMessageTime(message, isMe),
+          ],
+        );
+    }
+  }
+
+  Widget _buildMessageTime(MessageModel message, bool isMe) {
+    final time = TimeOfDay.fromDateTime(message.createdAt).format(context);
+    return Text(
+      time,
+      style: AppTextStyles.body2.copyWith(
+        fontSize: 11,
+        color: isMe
+            ? AppColors.textWhite.withOpacity(0.7)
+            : AppColors.textTertiary,
+      ),
+    );
+  }
+
+  Widget _buildRecordingPanel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.cardBackground,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            // Индикатор записи
+            Container(
+              width: 12,
+              height: 12,
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Время записи
+            Text(
+              _formatDuration(_recordingDuration),
+              style: AppTextStyles.h3.copyWith(fontSize: 16),
+            ),
+            const Spacer(),
+            // Отмена
+            IconButton(
+              icon: const Icon(Icons.close, color: AppColors.error),
+              onPressed: () {
+                _audioRecorder.stop();
+                _recordingTimer?.cancel();
+                setState(() {
+                  _isRecording = false;
+                  _recordingPath = null;
+                  _recordingDuration = 0;
+                });
+              },
+            ),
+            // Отправка
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.white, size: 24),
+                onPressed: _stopRecording,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputPanel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.cardBackground,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            // Кнопка вложений
+            PopupMenuButton<String>(
+              icon: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.attach_file,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
+              ),
+              onSelected: (value) {
+                if (value == 'image') {
+                  _pickAndSendImage();
+                } else if (value == 'file') {
+                  _pickAndSendFile();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'image',
+                  child: Row(
+                    children: [
+                      Icon(Icons.image, size: 20),
+                      SizedBox(width: 12),
+                      Text('Изображение'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'file',
+                  child: Row(
+                    children: [
+                      Icon(Icons.description, size: 20),
+                      SizedBox(width: 12),
+                      Text('Файл'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            // Поле ввода
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: 'Написать сообщение...',
+                    hintStyle: AppTextStyles.body2.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    border: InputBorder.none,
+                  ),
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => _sendTextMessage(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Кнопка голосового/отправки
+            GestureDetector(
+              onLongPress: _startRecording,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _messageController.text.isEmpty
+                      ? AppColors.background
+                      : AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    _messageController.text.isEmpty ? Icons.mic : Icons.send,
+                    color: _messageController.text.isEmpty
+                        ? AppColors.textSecondary
+                        : Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: _messageController.text.isEmpty
+                      ? null
+                      : _sendTextMessage,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+}
+
+// ✅ Виджет для воспроизведения голосовых
+class _VoiceMessagePlayer extends StatefulWidget {
+  final String url;
+  final int duration;
+  final bool isMe;
+
+  const _VoiceMessagePlayer({
+    required this.url,
+    required this.duration,
+    required this.isMe,
+  });
+
+  @override
+  State<_VoiceMessagePlayer> createState() => _VoiceMessagePlayerState();
+}
+
+class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+  Duration _currentPosition = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      setState(() {
+        _isPlaying = state == PlayerState.playing;
+      });
+    });
+    _audioPlayer.onPositionChanged.listen((position) {
+      setState(() {
+        _currentPosition = position;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlayPause() async {
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+    } else {
+      await _audioPlayer.play(UrlSource(widget.url));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = widget.isMe ? Colors.white : AppColors.primary;
+    final textColor = widget.isMe ? Colors.white : AppColors.textPrimary;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(
+            _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+            color: iconColor,
+            size: 32,
+          ),
+          onPressed: _togglePlayPause,
+        ),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LinearProgressIndicator(
+                value: widget.duration > 0
+                    ? _currentPosition.inSeconds / widget.duration
+                    : 0,
+                backgroundColor: iconColor.withOpacity(0.3),
+                valueColor: AlwaysStoppedAnimation(iconColor),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${_currentPosition.inSeconds}s / ${widget.duration}s',
+                style: AppTextStyles.body2.copyWith(
+                  fontSize: 11,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -10,11 +10,15 @@ class ChatProvider with ChangeNotifier {
   List<MessageModel> _messages = [];
   bool _isLoading = false;
   String? _errorMessage;
+  int? _currentUserId;
+
+  ChatProvider(ChatService chatService); // TODO: Получать из AuthProvider
 
   List<ChatModel> get chats => _chats;
   List<MessageModel> get messages => _messages;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  int? get currentUserId => _currentUserId;
 
   int get totalUnreadCount {
     return _chats.fold(0, (sum, chat) => sum + (chat.unreadCount ?? 0));
@@ -43,7 +47,6 @@ class ChatProvider with ChangeNotifier {
     try {
       final chat = await _service.getOrCreateChat(psychologistId);
 
-      // Добавляем или обновляем в списке
       final index = _chats.indexWhere((c) => c.id == chat.id);
       if (index != -1) {
         _chats[index] = chat;
@@ -82,13 +85,8 @@ class ChatProvider with ChangeNotifier {
   Future<bool> sendMessage(int chatRoomId, String text) async {
     try {
       final message = await _service.sendMessage(chatRoomId, text);
-
-      // Добавляем сообщение в список
       _messages.add(message);
-
-      // Обновляем последнее сообщение в чате
       _updateChatLastMessage(chatRoomId, message);
-
       notifyListeners();
       return true;
     } catch (e) {
@@ -98,7 +96,7 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// Загрузить файл
+  /// ✅ НОВЫЙ: Загрузить файл/картинку
   Future<bool> uploadFile(
     int chatRoomId,
     String filePath,
@@ -113,7 +111,6 @@ class ChatProvider with ChangeNotifier {
 
       _messages.add(message);
       _updateChatLastMessage(chatRoomId, message);
-
       notifyListeners();
       return true;
     } catch (e) {
@@ -123,12 +120,46 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  /// ✅ НОВЫЙ: Загрузить голосовое сообщение
+  Future<bool> uploadVoice(
+    int chatRoomId,
+    String audioPath,
+    int durationSeconds,
+  ) async {
+    try {
+      final message = await _service.uploadVoice(
+        chatRoomId,
+        audioPath,
+        durationSeconds,
+      );
+
+      _messages.add(message);
+      _updateChatLastMessage(chatRoomId, message);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// ✅ НОВЫЙ: Получить Zvonda URL
+  Future<String?> getZvondaUrl(int chatRoomId) async {
+    try {
+      return await _service.getZvondaUrl(chatRoomId);
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
   /// Отметить сообщения как прочитанные
   Future<void> markAsRead(int chatRoomId) async {
     try {
       await _service.markMessagesAsRead(chatRoomId);
 
-      // Обнуляем счётчик непрочитанных
       final index = _chats.indexWhere((c) => c.id == chatRoomId);
       if (index != -1) {
         _chats[index] = _chats[index].copyWith(unreadCount: 0);
@@ -149,7 +180,6 @@ class ChatProvider with ChangeNotifier {
         lastMessageTime: message.createdAt,
       );
 
-      // Перемещаем чат наверх
       final chat = _chats.removeAt(index);
       _chats.insert(0, chat);
     }

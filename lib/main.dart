@@ -6,9 +6,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/api/api_client.dart';
 import 'providers/appointment_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/chat_provider.dart';
 import 'providers/registration_provider.dart';
 import 'providers/psychologist_registration_provider.dart';
 import 'screens/splash/splash_screen.dart'; // ✅ Добавлено
+import 'services/chat_service.dart';
 import 'theme/app_colors.dart';
 
 Future<void> main() async {
@@ -44,6 +46,8 @@ class BalancePsyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AppointmentProvider(),
         ), // ✅ Добавлено
+        ChangeNotifierProvider(
+          create: (_) => ChatProvider(ChatService())),
       ],
       child: MaterialApp(
         title: 'BalancePsy',

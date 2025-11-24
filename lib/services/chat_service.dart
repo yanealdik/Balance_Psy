@@ -75,7 +75,7 @@ class ChatService {
     }
   }
 
-  /// Загрузить файл
+  /// ✅ НОВЫЙ: Загрузить файл/картинку
   Future<MessageModel> uploadFile(
     int chatRoomId,
     String filePath,
@@ -102,6 +102,54 @@ class ChatService {
       throw Exception('Failed to upload file');
     } on DioException catch (e) {
       throw Exception(e.response?.data['message'] ?? 'Failed to upload file');
+    }
+  }
+
+  /// ✅ НОВЫЙ: Загрузить голосовое сообщение
+  Future<MessageModel> uploadVoice(
+    int chatRoomId,
+    String audioPath,
+    int durationSeconds,
+  ) async {
+    try {
+      print('🔵 Uploading voice to chat: $chatRoomId (${durationSeconds}s)');
+
+      final fileName = audioPath.split('/').last;
+      final formData = FormData.fromMap({
+        'audio': await MultipartFile.fromFile(audioPath, filename: fileName),
+        'duration': durationSeconds,
+      });
+
+      final response = await _dio.post(
+        '/api/chats/$chatRoomId/voice',
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+      );
+
+      if (response.data['success'] == true) {
+        return MessageModel.fromJson(response.data['data']);
+      }
+      throw Exception('Failed to upload voice');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Failed to upload voice');
+    }
+  }
+
+  /// ✅ НОВЫЙ: Получить Zvonda URL
+  Future<String> getZvondaUrl(int chatRoomId) async {
+    try {
+      print('🔵 Getting Zvonda URL for chat: $chatRoomId');
+
+      final response = await _dio.get('/api/chats/$chatRoomId/zvonda-url');
+
+      if (response.data['success'] == true) {
+        return response.data['data']['zvondaUrl'] as String;
+      }
+      throw Exception('Failed to get Zvonda URL');
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['message'] ?? 'Failed to get Zvonda URL',
+      );
     }
   }
 
