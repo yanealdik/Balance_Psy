@@ -14,16 +14,16 @@ import '../../../models/message_model.dart';
 import '../../../widgets/psychologist/psychologist_avatar.dart';
 
 class MessageScreen extends StatefulWidget {
-  final int? chatRoomId; // ✅ Теперь nullable
-  final int? psychologistId; // ✅ Добавлено для создания чата
+  final int? chatRoomId;
+  final int? psychologistId;
   final String partnerName;
   final String? partnerImage;
   final bool isOnline;
 
   const MessageScreen({
     super.key,
-    this.chatRoomId, // ✅ Может быть null
-    this.psychologistId, // ✅ Для создания нового чата
+    this.chatRoomId,
+    this.psychologistId,
     required this.partnerName,
     this.partnerImage,
     this.isOnline = false,
@@ -43,29 +43,35 @@ class _MessageScreenState extends State<MessageScreen> {
   Timer? _recordingTimer;
   int _recordingDuration = 0;
   String? _recordingPath;
+  bool _hasText = false; // ✅ НОВЫЙ флаг для отслеживания текста
 
-  int? _activeChatRoomId; // ✅ Хранит актуальный ID чата
-  bool _isInitializing = true; // ✅ Флаг инициализации
+  int? _activeChatRoomId;
+  bool _isInitializing = true;
 
   @override
   void initState() {
     super.initState();
+
+    // ✅ Слушаем изменения в поле ввода
+    _messageController.addListener(() {
+      setState(() {
+        _hasText = _messageController.text.trim().isNotEmpty;
+      });
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeChat();
     });
   }
 
-  // ✅ НОВЫЙ МЕТОД: Инициализация чата
   Future<void> _initializeChat() async {
     setState(() => _isInitializing = true);
 
     try {
       if (widget.chatRoomId != null) {
-        // Чат уже существует
         _activeChatRoomId = widget.chatRoomId;
         await _loadMessages();
       } else if (widget.psychologistId != null) {
-        // Создаём новый чат
         final chat = await context.read<ChatProvider>().getOrCreateChat(
           widget.psychologistId!,
         );
@@ -115,13 +121,21 @@ class _MessageScreenState extends State<MessageScreen> {
     });
   }
 
-  // ✅ Отправка текста
+  // ✅ ИСПРАВЛЕНО: Отправка текста
   Future<void> _sendTextMessage() async {
-    if (_messageController.text.trim().isEmpty || _activeChatRoomId == null)
+    if (_activeChatRoomId == null) {
+      _showError('Чат не инициализирован');
       return;
+    }
 
-    final text = _messageController.text;
+    final text = _messageController.text.trim();
+    if (text.isEmpty) {
+      _showError('Введите сообщение');
+      return;
+    }
+
     _messageController.clear();
+    setState(() => _hasText = false);
 
     final success = await context.read<ChatProvider>().sendMessage(
       _activeChatRoomId!,
@@ -135,18 +149,31 @@ class _MessageScreenState extends State<MessageScreen> {
     }
   }
 
-  // ✅ Выбор и отправка картинки
+  // ✅ ИСПРАВЛЕНО: Выбор и отправка картинки
   Future<void> _pickAndSendImage() async {
-    if (_activeChatRoomId == null) return;
+    if (_activeChatRoomId == null) {
+      _showError('Чат не инициализирован');
+      return;
+    }
 
-    final XFile? image = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1080,
-      imageQuality: 85,
-    );
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
 
-    if (image != null) {
+      if (image == null) return;
+
+      // Проверяем размер файла
+      final file = File(image.path);
+      final fileSize = await file.length();
+      if (fileSize > 10 * 1024 * 1024) {
+        _showError('Файл слишком большой (макс. 10MB)');
+        return;
+      }
+
       final success = await context.read<ChatProvider>().uploadFile(
         _activeChatRoomId!,
         image.path,
@@ -158,21 +185,38 @@ class _MessageScreenState extends State<MessageScreen> {
       } else {
         _showError('Не удалось отправить изображение');
       }
+    } catch (e) {
+      print('❌ Image pick error: $e');
+      _showError('Ошибка при выборе изображения');
     }
   }
 
-  // ✅ Выбор и отправка файла
+  // ✅ ИСПРАВЛЕНО: Выбор и отправка файла
   Future<void> _pickAndSendFile() async {
-    if (_activeChatRoomId == null) return;
+    if (_activeChatRoomId == null) {
+      _showError('Чат не инициализирован');
+      return;
+    }
 
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+      );
 
-    if (result != null && result.files.single.path != null) {
+      if (result == null || result.files.single.path == null) return;
+
+      final filePath = result.files.single.path!;
+      final file = File(filePath);
+      final fileSize = await file.length();
+
+      if (fileSize > 10 * 1024 * 1024) {
+        _showError('Файл слишком большой (макс. 10MB)');
+        return;
+      }
+
       final success = await context.read<ChatProvider>().uploadFile(
         _activeChatRoomId!,
-        result.files.single.path!,
+        filePath,
         'file',
       );
 
@@ -181,12 +225,25 @@ class _MessageScreenState extends State<MessageScreen> {
       } else {
         _showError('Не удалось отправить файл');
       }
+    } catch (e) {
+      print('❌ File pick error: $e');
+      _showError('Ошибка при выборе файла');
     }
   }
 
-  // ✅ Запись голосового
+  // ✅ ИСПРАВЛЕНО: Запись голосового
   Future<void> _startRecording() async {
-    if (await _audioRecorder.hasPermission()) {
+    if (_activeChatRoomId == null) {
+      _showError('Чат не инициализирован');
+      return;
+    }
+
+    try {
+      if (!await _audioRecorder.hasPermission()) {
+        _showError('Нет разрешения на запись аудио');
+        return;
+      }
+
       final path =
           '${Directory.systemTemp.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
@@ -202,46 +259,95 @@ class _MessageScreenState extends State<MessageScreen> {
       });
 
       _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() {
-          _recordingDuration++;
-        });
+        if (mounted) {
+          setState(() {
+            _recordingDuration++;
+          });
+        }
       });
-    } else {
-      _showError('Нет разрешения на запись аудио');
+    } catch (e) {
+      print('❌ Recording start error: $e');
+      _showError('Не удалось начать запись');
+      setState(() {
+        _isRecording = false;
+        _recordingPath = null;
+      });
     }
   }
 
   Future<void> _stopRecording() async {
     if (_activeChatRoomId == null) return;
 
-    await _audioRecorder.stop();
-    _recordingTimer?.cancel();
+    try {
+      await _audioRecorder.stop();
+      _recordingTimer?.cancel();
 
-    setState(() {
-      _isRecording = false;
-    });
+      setState(() {
+        _isRecording = false;
+      });
 
-    if (_recordingPath != null && _recordingDuration >= 1) {
-      final success = await context.read<ChatProvider>().uploadVoice(
-        _activeChatRoomId!,
-        _recordingPath!,
-        _recordingDuration,
-      );
+      if (_recordingPath != null && _recordingDuration >= 1) {
+        final success = await context.read<ChatProvider>().uploadVoice(
+          _activeChatRoomId!,
+          _recordingPath!,
+          _recordingDuration,
+        );
 
-      if (success) {
-        _scrollToBottom();
-      } else {
-        _showError('Не удалось отправить голосовое');
+        if (success) {
+          _scrollToBottom();
+        } else {
+          _showError('Не удалось отправить голосовое');
+        }
       }
-    }
 
-    setState(() {
-      _recordingPath = null;
-      _recordingDuration = 0;
-    });
+      setState(() {
+        _recordingPath = null;
+        _recordingDuration = 0;
+      });
+    } catch (e) {
+      print('❌ Recording stop error: $e');
+      _showError('Ошибка при завершении записи');
+      setState(() {
+        _isRecording = false;
+        _recordingPath = null;
+        _recordingDuration = 0;
+      });
+    }
   }
 
-  // ✅ Открыть Zvonda
+  // ✅ ИСПРАВЛЕНО: Отмена записи
+  Future<void> _cancelRecording() async {
+    try {
+      await _audioRecorder.stop();
+      _recordingTimer?.cancel();
+
+      // Удаляем временный файл
+      if (_recordingPath != null) {
+        try {
+          final file = File(_recordingPath!);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (e) {
+          print('Warning: Failed to delete temp recording: $e');
+        }
+      }
+
+      setState(() {
+        _isRecording = false;
+        _recordingPath = null;
+        _recordingDuration = 0;
+      });
+    } catch (e) {
+      print('❌ Recording cancel error: $e');
+      setState(() {
+        _isRecording = false;
+        _recordingPath = null;
+        _recordingDuration = 0;
+      });
+    }
+  }
+
   Future<void> _openZvondaSession() async {
     if (_activeChatRoomId == null) return;
 
@@ -260,14 +366,18 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 
   void _showError(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Показываем загрузку пока инициализируется чат
     if (_isInitializing) {
       return Scaffold(
         backgroundColor: AppColors.backgroundLight,
@@ -576,15 +686,7 @@ class _MessageScreenState extends State<MessageScreen> {
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.close, color: AppColors.error),
-              onPressed: () {
-                _audioRecorder.stop();
-                _recordingTimer?.cancel();
-                setState(() {
-                  _isRecording = false;
-                  _recordingPath = null;
-                  _recordingDuration = 0;
-                });
-              },
+              onPressed: _cancelRecording, // ✅ ИСПРАВЛЕНО
             ),
             Container(
               width: 48,
@@ -604,6 +706,7 @@ class _MessageScreenState extends State<MessageScreen> {
     );
   }
 
+  // ✅ ИСПРАВЛЕНО: Панель ввода
   Widget _buildInputPanel() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -689,27 +792,21 @@ class _MessageScreenState extends State<MessageScreen> {
             ),
             const SizedBox(width: 12),
             GestureDetector(
-              onLongPress: _startRecording,
+              onLongPress: _startRecording, // ✅ Долгое нажатие для записи
               child: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _messageController.text.isEmpty
-                      ? AppColors.background
-                      : AppColors.primary,
+                  color: _hasText ? AppColors.primary : AppColors.background,
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
                   icon: Icon(
-                    _messageController.text.isEmpty ? Icons.mic : Icons.send,
-                    color: _messageController.text.isEmpty
-                        ? AppColors.textSecondary
-                        : Colors.white,
+                    _hasText ? Icons.send : Icons.mic,
+                    color: _hasText ? Colors.white : AppColors.textSecondary,
                     size: 20,
                   ),
-                  onPressed: _messageController.text.isEmpty
-                      ? null
-                      : _sendTextMessage,
+                  onPressed: _hasText ? _sendTextMessage : null, // ✅ ИСПРАВЛЕНО
                 ),
               ),
             ),
@@ -726,6 +823,7 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 }
 
+// ✅ Виджет проигрывателя голосовых (без изменений)
 class _VoiceMessagePlayer extends StatefulWidget {
   final String url;
   final int duration;
@@ -750,14 +848,18 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
   void initState() {
     super.initState();
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      setState(() {
-        _isPlaying = state == PlayerState.playing;
-      });
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
     });
     _audioPlayer.onPositionChanged.listen((position) {
-      setState(() {
-        _currentPosition = position;
-      });
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+        });
+      }
     });
   }
 

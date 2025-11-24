@@ -12,7 +12,7 @@ class ChatProvider with ChangeNotifier {
   String? _errorMessage;
   int? _currentUserId;
 
-  ChatProvider(ChatService chatService); // TODO: Получать из AuthProvider
+  ChatProvider(ChatService chatService);
 
   void setCurrentUserId(int userId) {
     _currentUserId = userId;
@@ -38,7 +38,9 @@ class ChatProvider with ChangeNotifier {
     try {
       _chats = await _service.getUserChats();
       _errorMessage = null;
+      print('✅ Loaded ${_chats.length} chats');
     } catch (e) {
+      print('❌ Load chats error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _chats = [];
     } finally {
@@ -50,6 +52,9 @@ class ChatProvider with ChangeNotifier {
   /// Получить или создать чат с психологом
   Future<ChatModel?> getOrCreateChat(int psychologistId) async {
     try {
+      print(
+        '🔵 Provider: Getting/creating chat with psychologist $psychologistId',
+      );
       final chat = await _service.getOrCreateChat(psychologistId);
 
       final index = _chats.indexWhere((c) => c.id == chat.id);
@@ -59,9 +64,11 @@ class ChatProvider with ChangeNotifier {
         _chats.insert(0, chat);
       }
 
+      print('✅ Provider: Chat ready, ID: ${chat.id}');
       notifyListeners();
       return chat;
     } catch (e) {
+      print('❌ Provider: Get/create chat error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
       return null;
@@ -75,9 +82,12 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      print('🔵 Provider: Loading messages for chat $chatRoomId');
       _messages = await _service.getChatMessages(chatRoomId);
       _errorMessage = null;
+      print('✅ Provider: Loaded ${_messages.length} messages');
     } catch (e) {
+      print('❌ Provider: Load messages error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _messages = [];
     } finally {
@@ -86,74 +96,110 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// Отправить текстовое сообщение
+  /// ✅ ИСПРАВЛЕНО: Отправить текстовое сообщение
   Future<bool> sendMessage(int chatRoomId, String text) async {
     try {
+      print('🔵 Provider: Sending message to chat $chatRoomId');
+      print('📝 Provider: Message text: "$text"');
+
+      if (text.trim().isEmpty) {
+        print('❌ Provider: Message text is empty');
+        _errorMessage = 'Сообщение не может быть пустым';
+        notifyListeners();
+        return false;
+      }
+
       final message = await _service.sendMessage(chatRoomId, text);
+
+      print('✅ Provider: Message sent successfully, ID: ${message.id}');
       _messages.add(message);
       _updateChatLastMessage(chatRoomId, message);
       notifyListeners();
       return true;
     } catch (e) {
+      print('❌ Provider: Send message error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
       return false;
     }
   }
 
-  /// ✅ НОВЫЙ: Загрузить файл/картинку
+  /// ✅ ИСПРАВЛЕНО: Загрузить файл/картинку
   Future<bool> uploadFile(
     int chatRoomId,
     String filePath,
     String messageType,
   ) async {
     try {
+      print('🔵 Provider: Uploading file to chat $chatRoomId');
+      print('📁 Provider: File path: $filePath');
+      print('📎 Provider: Message type: $messageType');
+
       final message = await _service.uploadFile(
         chatRoomId,
         filePath,
         messageType,
       );
 
+      print('✅ Provider: File uploaded successfully, ID: ${message.id}');
       _messages.add(message);
       _updateChatLastMessage(chatRoomId, message);
       notifyListeners();
       return true;
     } catch (e) {
+      print('❌ Provider: Upload file error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
       return false;
     }
   }
 
-  /// ✅ НОВЫЙ: Загрузить голосовое сообщение
+  /// ✅ ИСПРАВЛЕНО: Загрузить голосовое сообщение
   Future<bool> uploadVoice(
     int chatRoomId,
     String audioPath,
     int durationSeconds,
   ) async {
     try {
+      print('🔵 Provider: Uploading voice to chat $chatRoomId');
+      print('🎤 Provider: Audio path: $audioPath');
+      print('⏱️ Provider: Duration: ${durationSeconds}s');
+
+      if (durationSeconds < 1) {
+        print('❌ Provider: Voice duration too short');
+        _errorMessage = 'Голосовое сообщение слишком короткое';
+        notifyListeners();
+        return false;
+      }
+
       final message = await _service.uploadVoice(
         chatRoomId,
         audioPath,
         durationSeconds,
       );
 
+      print('✅ Provider: Voice uploaded successfully, ID: ${message.id}');
       _messages.add(message);
       _updateChatLastMessage(chatRoomId, message);
       notifyListeners();
       return true;
     } catch (e) {
+      print('❌ Provider: Upload voice error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
       return false;
     }
   }
 
-  /// ✅ НОВЫЙ: Получить Zvonda URL
+  /// ✅ ИСПРАВЛЕНО: Получить Zvonda URL
   Future<String?> getZvondaUrl(int chatRoomId) async {
     try {
-      return await _service.getZvondaUrl(chatRoomId);
+      print('🔵 Provider: Getting Zvonda URL for chat $chatRoomId');
+      final url = await _service.getZvondaUrl(chatRoomId);
+      print('✅ Provider: Zvonda URL obtained');
+      return url;
     } catch (e) {
+      print('❌ Provider: Get Zvonda URL error: $e');
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
       return null;
@@ -163,6 +209,7 @@ class ChatProvider with ChangeNotifier {
   /// Отметить сообщения как прочитанные
   Future<void> markAsRead(int chatRoomId) async {
     try {
+      print('🔵 Provider: Marking messages as read in chat $chatRoomId');
       await _service.markMessagesAsRead(chatRoomId);
 
       final index = _chats.indexWhere((c) => c.id == chatRoomId);
@@ -170,9 +217,10 @@ class ChatProvider with ChangeNotifier {
         _chats[index] = _chats[index].copyWith(unreadCount: 0);
       }
 
+      print('✅ Provider: Messages marked as read');
       notifyListeners();
     } catch (e) {
-      print('Failed to mark as read: $e');
+      print('❌ Provider: Mark as read error: $e');
     }
   }
 
