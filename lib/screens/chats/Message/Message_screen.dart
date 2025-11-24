@@ -14,14 +14,16 @@ import '../../../models/message_model.dart';
 import '../../../widgets/psychologist/psychologist_avatar.dart';
 
 class MessageScreen extends StatefulWidget {
-  final int chatRoomId;
+  final int? chatRoomId; // ✅ Теперь nullable
+  final int? psychologistId; // ✅ Добавлено для создания чата
   final String partnerName;
   final String? partnerImage;
   final bool isOnline;
 
   const MessageScreen({
     super.key,
-    required this.chatRoomId,
+    this.chatRoomId, // ✅ Может быть null
+    this.psychologistId, // ✅ Для создания нового чата
     required this.partnerName,
     this.partnerImage,
     this.isOnline = false,
@@ -42,12 +44,47 @@ class _MessageScreenState extends State<MessageScreen> {
   int _recordingDuration = 0;
   String? _recordingPath;
 
+  int? _activeChatRoomId; // ✅ Хранит актуальный ID чата
+  bool _isInitializing = true; // ✅ Флаг инициализации
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMessages();
+      _initializeChat();
     });
+  }
+
+  // ✅ НОВЫЙ МЕТОД: Инициализация чата
+  Future<void> _initializeChat() async {
+    setState(() => _isInitializing = true);
+
+    try {
+      if (widget.chatRoomId != null) {
+        // Чат уже существует
+        _activeChatRoomId = widget.chatRoomId;
+        await _loadMessages();
+      } else if (widget.psychologistId != null) {
+        // Создаём новый чат
+        final chat = await context.read<ChatProvider>().getOrCreateChat(
+          widget.psychologistId!,
+        );
+
+        if (chat != null) {
+          _activeChatRoomId = chat.id;
+          await _loadMessages();
+        } else {
+          _showError('Не удалось создать чат');
+        }
+      } else {
+        _showError('Не указан ID чата или психолога');
+      }
+    } catch (e) {
+      print('❌ Chat initialization error: $e');
+      _showError('Ошибка инициализации чата');
+    } finally {
+      setState(() => _isInitializing = false);
+    }
   }
 
   @override
@@ -60,7 +97,9 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 
   Future<void> _loadMessages() async {
-    await context.read<ChatProvider>().loadMessages(widget.chatRoomId);
+    if (_activeChatRoomId == null) return;
+
+    await context.read<ChatProvider>().loadMessages(_activeChatRoomId!);
     _scrollToBottom();
   }
 
@@ -78,13 +117,14 @@ class _MessageScreenState extends State<MessageScreen> {
 
   // ✅ Отправка текста
   Future<void> _sendTextMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    if (_messageController.text.trim().isEmpty || _activeChatRoomId == null)
+      return;
 
     final text = _messageController.text;
     _messageController.clear();
 
     final success = await context.read<ChatProvider>().sendMessage(
-      widget.chatRoomId,
+      _activeChatRoomId!,
       text,
     );
 
@@ -97,6 +137,8 @@ class _MessageScreenState extends State<MessageScreen> {
 
   // ✅ Выбор и отправка картинки
   Future<void> _pickAndSendImage() async {
+    if (_activeChatRoomId == null) return;
+
     final XFile? image = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1920,
@@ -106,7 +148,7 @@ class _MessageScreenState extends State<MessageScreen> {
 
     if (image != null) {
       final success = await context.read<ChatProvider>().uploadFile(
-        widget.chatRoomId,
+        _activeChatRoomId!,
         image.path,
         'image',
       );
@@ -121,13 +163,15 @@ class _MessageScreenState extends State<MessageScreen> {
 
   // ✅ Выбор и отправка файла
   Future<void> _pickAndSendFile() async {
+    if (_activeChatRoomId == null) return;
+
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.any,
     );
 
     if (result != null && result.files.single.path != null) {
       final success = await context.read<ChatProvider>().uploadFile(
-        widget.chatRoomId,
+        _activeChatRoomId!,
         result.files.single.path!,
         'file',
       );
@@ -168,6 +212,8 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 
   Future<void> _stopRecording() async {
+    if (_activeChatRoomId == null) return;
+
     await _audioRecorder.stop();
     _recordingTimer?.cancel();
 
@@ -177,7 +223,7 @@ class _MessageScreenState extends State<MessageScreen> {
 
     if (_recordingPath != null && _recordingDuration >= 1) {
       final success = await context.read<ChatProvider>().uploadVoice(
-        widget.chatRoomId,
+        _activeChatRoomId!,
         _recordingPath!,
         _recordingDuration,
       );
@@ -197,8 +243,10 @@ class _MessageScreenState extends State<MessageScreen> {
 
   // ✅ Открыть Zvonda
   Future<void> _openZvondaSession() async {
+    if (_activeChatRoomId == null) return;
+
     final zvondaUrl = await context.read<ChatProvider>().getZvondaUrl(
-      widget.chatRoomId,
+      _activeChatRoomId!,
     );
 
     if (zvondaUrl != null) {
@@ -219,21 +267,25 @@ class _MessageScreenState extends State<MessageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Показываем загрузку пока инициализируется чат
+    if (_isInitializing) {
+      return Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        appBar: _buildAppBar(),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          // Баннер Zvonda
           _buildZvondaBanner(),
-
-          // Список сообщений
           Expanded(child: _buildMessagesList()),
-
-          // Панель записи голосового
           if (_isRecording) _buildRecordingPanel(),
-
-          // Поле ввода
           if (!_isRecording) _buildInputPanel(),
         ],
       ),
@@ -350,8 +402,7 @@ class _MessageScreenState extends State<MessageScreen> {
           itemCount: provider.messages.length,
           itemBuilder: (context, index) {
             final message = provider.messages[index];
-            final isMe =
-                message.senderId == provider.currentUserId; // TODO: Implement
+            final isMe = message.senderId == provider.currentUserId;
             return _buildMessageBubble(message, isMe);
           },
         );
@@ -509,7 +560,6 @@ class _MessageScreenState extends State<MessageScreen> {
       child: SafeArea(
         child: Row(
           children: [
-            // Индикатор записи
             Container(
               width: 12,
               height: 12,
@@ -519,13 +569,11 @@ class _MessageScreenState extends State<MessageScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            // Время записи
             Text(
               _formatDuration(_recordingDuration),
               style: AppTextStyles.h3.copyWith(fontSize: 16),
             ),
             const Spacer(),
-            // Отмена
             IconButton(
               icon: const Icon(Icons.close, color: AppColors.error),
               onPressed: () {
@@ -538,7 +586,6 @@ class _MessageScreenState extends State<MessageScreen> {
                 });
               },
             ),
-            // Отправка
             Container(
               width: 48,
               height: 48,
@@ -573,7 +620,6 @@ class _MessageScreenState extends State<MessageScreen> {
       child: SafeArea(
         child: Row(
           children: [
-            // Кнопка вложений
             PopupMenuButton<String>(
               icon: Container(
                 width: 40,
@@ -619,7 +665,6 @@ class _MessageScreenState extends State<MessageScreen> {
               ],
             ),
             const SizedBox(width: 12),
-            // Поле ввода
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -643,7 +688,6 @@ class _MessageScreenState extends State<MessageScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            // Кнопка голосового/отправки
             GestureDetector(
               onLongPress: _startRecording,
               child: Container(
@@ -682,7 +726,6 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 }
 
-// ✅ Виджет для воспроизведения голосовых
 class _VoiceMessagePlayer extends StatefulWidget {
   final String url;
   final int duration;

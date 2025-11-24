@@ -344,7 +344,7 @@ class _HomeContentState extends State<_HomeContent>
             child: SessionCardP(
               session: session,
               onChatTap: () {
-                // TODO: Открыть чат с клиентом
+                
               },
             ),
           );

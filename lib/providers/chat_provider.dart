@@ -14,6 +14,11 @@ class ChatProvider with ChangeNotifier {
 
   ChatProvider(ChatService chatService); // TODO: Получать из AuthProvider
 
+  void setCurrentUserId(int userId) {
+    _currentUserId = userId;
+    notifyListeners();
+  }
+
   List<ChatModel> get chats => _chats;
   List<MessageModel> get messages => _messages;
   bool get isLoading => _isLoading;

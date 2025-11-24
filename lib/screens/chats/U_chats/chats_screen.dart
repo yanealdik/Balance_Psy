@@ -21,7 +21,16 @@ class _ChatsScreenState extends State<ChatsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().loadChats();
+      final authProvider = context.read<AuthProvider>();
+      final chatProvider = context.read<ChatProvider>();
+
+      // Устанавливаем текущего пользователя
+      if (authProvider.user != null) {
+        chatProvider.setCurrentUserId(authProvider.user!.userId);
+      }
+
+      // Загружаем чаты
+      chatProvider.loadChats();
     });
   }
 
@@ -108,7 +117,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     _FilterChip(
                       label: 'Непрочитанные',
                       isSelected: selectedFilter == 'Непрочитанные',
-                      onTap: () => setState(() => selectedFilter = 'Непрочитанные'),
+                      onTap: () =>
+                          setState(() => selectedFilter = 'Непрочитанные'),
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
@@ -218,7 +228,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                   ),
                                 ),
                               );
-                              
+
                               // Обновляем список после возврата
                               if (mounted) {
                                 provider.loadChats();
@@ -295,7 +305,10 @@ class _StatCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(value, style: AppTextStyles.h3.copyWith(fontSize: 20)),
-                  Text(label, style: AppTextStyles.body2.copyWith(fontSize: 12)),
+                  Text(
+                    label,
+                    style: AppTextStyles.body2.copyWith(fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -361,15 +374,12 @@ class _ChatItem extends StatelessWidget {
   final dynamic chat;
   final VoidCallback onTap;
 
-  const _ChatItem({
-    required this.chat,
-    required this.onTap,
-  });
+  const _ChatItem({required this.chat, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final hasUnread = (chat.unreadCount ?? 0) > 0;
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -495,7 +505,8 @@ class _ChatItem extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (chat.unreadCount != null && chat.unreadCount! > 0) ...[
+                      if (chat.unreadCount != null &&
+                          chat.unreadCount! > 0) ...[
                         const SizedBox(width: 8),
                         Container(
                           height: 20,
@@ -529,10 +540,10 @@ class _ChatItem extends StatelessWidget {
 
   String _formatTime(DateTime? time) {
     if (time == null) return '';
-    
+
     final now = DateTime.now();
     final difference = now.difference(time);
-    
+
     if (difference.inDays == 0) {
       return DateFormat('HH:mm').format(time);
     } else if (difference.inDays == 1) {

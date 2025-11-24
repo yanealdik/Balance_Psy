@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../providers/chat_provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_calendar.dart';
@@ -15,6 +16,7 @@ import '../../../models/article_model.dart';
 import '../../U_psy_catalog/psy_catalog.dart';
 import '../../U_articles/article_screen.dart';
 import '../../MoodSurvey/MoodSurveyScreen.dart';
+import '../../chats/Message/Message_screen.dart';
 import '../../chats/U_chats/chats_screen.dart';
 import '../../profile/U_profile/profile_screen.dart';
 import '../../../widgets/custom_navbar.dart';
@@ -96,6 +98,64 @@ class _HomeContentState extends State<_HomeContent> {
     } catch (e) {
       print('❌ Error loading articles: $e');
       setState(() => _isLoadingArticles = false);
+    }
+  }
+
+  Future<void> _openChat(int psychologistId) async {
+    final chatProvider = context.read<ChatProvider>();
+
+    // Показать индикатор загрузки
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+    );
+
+    try {
+      // ✅ Получить или создать чат
+      final chat = await chatProvider.getOrCreateChat(psychologistId);
+
+      // Закрыть индикатор
+      if (mounted) Navigator.pop(context);
+
+      if (chat != null && mounted) {
+        // Перейти в чат
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MessageScreen(
+              chatRoomId: chat.id,
+              partnerName: chat.partnerName,
+              partnerImage: chat.partnerImage,
+              isOnline: chat.isPartnerOnline,
+            ),
+          ),
+        );
+      } else {
+        // Ошибка создания чата
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Не удалось открыть чат'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Закрыть индикатор
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -188,7 +248,9 @@ class _HomeContentState extends State<_HomeContent> {
                             statusColor: _getStatusColor(
                               upcomingAppointment.status,
                             ),
-                            onChatTap: () => _goToTab(context, 3),
+                            onChatTap: () => _openChat(
+                              upcomingAppointment.psychologistId,
+                            ), // ✅ ИСПРАВЛЕНО
                             showActions:
                                 upcomingAppointment.status == 'CONFIRMED',
                           ),
