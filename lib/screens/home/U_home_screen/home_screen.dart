@@ -393,42 +393,42 @@ class _HomeContentState extends State<_HomeContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
+    Container(
+      height: 120,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      child: article.thumbnailUrl != null && article.thumbnailUrl!.isNotEmpty
+          ? ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
               ),
-              child: article.imageUrl != null
-                  ? ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                      child: Image.asset(
-                        article.imageUrl!,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(
-                            child: Icon(
-                              Icons.article,
-                              size: 48,
-                              color: AppColors.primary,
-                            ),
-                          );
-                        },
-                      ),
-                    )
-                  : const Center(
-                      child: Icon(
-                        Icons.article,
-                        size: 48,
-                        color: AppColors.primary,
-                      ),
+              child: Image.network(
+                article.thumbnailUrl!,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Icon(
+                      Icons.article,
+                      size: 48,
+                      color: AppColors.primary,
                     ),
+                  );
+                },
+              ),
+            )
+          : const Center(
+              child: Icon(
+                Icons.article,
+                size: 48,
+                color: AppColors.primary,
+              ),
             ),
+    ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(

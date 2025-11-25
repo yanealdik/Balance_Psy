@@ -1,11 +1,13 @@
+// ========== lib/screens/U_articles/article_screen.dart (ОБНОВЛЁННЫЙ) ==========
+
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../models/article_model.dart';
-import '../../services/directus_service.dart';
+import '../../models/article_page_response.dart';
+import '../../services/article_service.dart';
 import 'ArticleDetail/ArticleDetailScreen.dart';
 
-/// Экран полезных статей - интеграция с Directus
 class ArticlesScreen extends StatefulWidget {
   const ArticlesScreen({super.key});
 
@@ -14,7 +16,7 @@ class ArticlesScreen extends StatefulWidget {
 }
 
 class _ArticlesScreenState extends State<ArticlesScreen> {
-  final DirectusService _directusService = DirectusService();
+  final ArticleService _articleService = ArticleService();
 
   int selectedCategory = 0;
   List<ArticleModel> _articles = [];
@@ -43,13 +45,14 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
 
     try {
       final category = categories[selectedCategory].value;
-      final response = await _directusService.getArticles(
+      final response = await _articleService.getArticles(
         category: category,
-        limit: 50,
+        page: 0,
+        size: 50,
       );
 
       setState(() {
-        _articles = response.data;
+        _articles = response.articles;
         _isLoading = false;
       });
     } catch (e) {
@@ -58,24 +61,6 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  // Группировка статей по секциям
-  Map<String, List<ArticleModel>> get groupedArticles {
-    if (_articles.isEmpty) return {};
-
-    // Простая группировка: все статьи в одну секцию по категориям
-    Map<String, List<ArticleModel>> grouped = {};
-
-    for (var article in _articles) {
-      final sectionName = article.categoryDisplayName;
-      if (!grouped.containsKey(sectionName)) {
-        grouped[sectionName] = [];
-      }
-      grouped[sectionName]!.add(article);
-    }
-
-    return grouped;
   }
 
   @override
@@ -163,50 +148,13 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
     return RefreshIndicator(
       onRefresh: _loadArticles,
       color: AppColors.primary,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: _buildSections(),
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildSections() {
-    List<Widget> sections = [];
-    final grouped = groupedArticles;
-
-    grouped.forEach((sectionTitle, articles) {
-      sections.addAll([
-        _buildSectionTitle(sectionTitle),
-        const SizedBox(height: 16),
-        _buildHorizontalArticlesList(articles),
-        const SizedBox(height: 32),
-      ]);
-    });
-
-    if (sections.isNotEmpty) {
-      sections.removeLast();
-      sections.add(const SizedBox(height: 30));
-    }
-
-    return sections;
-  }
-
-  Widget _buildHorizontalArticlesList(List<ArticleModel> articles) {
-    return SizedBox(
-      height: 150,
       child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: articles.length,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        itemCount: _articles.length,
         itemBuilder: (context, index) {
-          final article = articles[index];
           return Padding(
-            padding: EdgeInsets.only(
-              right: index < articles.length - 1 ? 16 : 0,
-            ),
-            child: _buildArticleCard(article),
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _buildArticleCard(_articles[index]),
           );
         },
       ),
@@ -224,91 +172,121 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
               title: article.title,
               category: article.categoryDisplayName,
               readTime: article.readTime,
-              imageUrl: article.imageUrl,
+              thumbnailUrl: article.thumbnailUrl,
             ),
           ),
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Контейнер со стеком (110x110)
-          SizedBox(
-            width: 110,
-            height: 110,
-            child: Stack(
-              children: [
-                // Нижний слой (синяя "тень")
-                Positioned(
-                  left: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: 120,
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // ✅ THUMBNAIL IMAGE (квадратная слева)
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+              child: article.thumbnailUrl != null
+                  ? Image.network(
+                      article.thumbnailUrl!,
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return _buildPlaceholderImage(120, 120);
+                      },
+                    )
+                  : _buildPlaceholderImage(120, 120),
+            ),
+
+            // Информация
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Заголовок
+                    Text(
+                      article.title,
+                      style: AppTextStyles.h3.copyWith(fontSize: 16),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ),
-                // Верхний слой (белая карточка с изображением)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 103,
-                    height: 103,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+
+                    // Метаданные
+                    Row(
+                      children: [
+                        // Категория
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            article.categoryDisplayName,
+                            style: AppTextStyles.body3.copyWith(
+                              fontSize: 10,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
+
+                        const Spacer(),
+
+                        // Время чтения
+                        if (article.readTime != null) ...[
+                          const Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${article.readTime} мин',
+                            style: AppTextStyles.body3.copyWith(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: article.imageUrl != null
-                          ? Image.network(
-                              article.imageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return _buildPlaceholderIcon();
-                              },
-                            )
-                          : _buildPlaceholderIcon(),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Текст под карточкой
-          SizedBox(
-            width: 110,
-            child: Text(
-              article.title,
-              style: AppTextStyles.body1.copyWith(fontSize: 12, height: 1.3),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPlaceholderIcon() {
+  Widget _buildPlaceholderImage(double width, double height) {
     return Container(
+      width: width,
+      height: height,
       color: AppColors.primary.withOpacity(0.1),
       child: const Center(
-        child: Icon(Icons.article, size: 40, color: AppColors.primary),
+        child: Icon(Icons.article_outlined, size: 40, color: AppColors.primary),
       ),
     );
   }
@@ -351,23 +329,6 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(title, style: AppTextStyles.h3.copyWith(fontSize: 22)),
-      ],
     );
   }
 
@@ -473,11 +434,9 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
   }
 }
 
-// Вспомогательный класс для категорий
 class CategoryItem {
   final String name;
   final String? value;
 
   CategoryItem({required this.name, this.value});
 }
-

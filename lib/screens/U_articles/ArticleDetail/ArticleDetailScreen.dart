@@ -1,15 +1,16 @@
+// ========== lib/screens/U_articles/ArticleDetail/ArticleDetailScreen.dart (ОБНОВЛЁННЫЙ) ==========
+
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../models/article_model.dart';
-import '../../../services/directus_service.dart';
+import '../../../services/article_service.dart';
 
-/// Экран чтения статьи - интеграция с Directus
 class ArticleDetailScreen extends StatefulWidget {
   final String slug;
-  final String? title; // Для превью в AppBar
-  final String? imageUrl;
+  final String? title;
+  final String? thumbnailUrl;
   final String? category;
   final int? readTime;
 
@@ -17,7 +18,7 @@ class ArticleDetailScreen extends StatefulWidget {
     super.key,
     required this.slug,
     this.title,
-    this.imageUrl,
+    this.thumbnailUrl,
     this.category,
     this.readTime,
   });
@@ -27,7 +28,7 @@ class ArticleDetailScreen extends StatefulWidget {
 }
 
 class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
-  final DirectusService _directusService = DirectusService();
+  final ArticleService _articleService = ArticleService();
   final ScrollController _scrollController = ScrollController();
 
   ArticleModel? _article;
@@ -65,15 +66,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     });
 
     try {
-      final article = await _directusService.getArticleBySlug(widget.slug);
-
-      if (article == null) {
-        setState(() {
-          _errorMessage = 'Статья не найдена';
-          _isLoading = false;
-        });
-        return;
-      }
+      final article = await _articleService.getArticleBySlug(widget.slug);
 
       setState(() {
         _article = article;
@@ -130,7 +123,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   }
 
   Widget _buildSliverAppBar() {
-    final imageUrl = _article?.imageUrl ?? widget.imageUrl;
+    // ✅ HEADER IMAGE (широкая картинка в шапке)
+    final headerUrl = _article?.headerUrl ?? widget.thumbnailUrl;
     final title = _article?.title ?? widget.title ?? 'Статья';
 
     return SliverAppBar(
@@ -206,9 +200,10 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            if (imageUrl != null)
+            // ✅ HEADER IMAGE (широкая картинка)
+            if (headerUrl != null)
               Image.network(
-                imageUrl,
+                headerUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return _buildPlaceholderImage();
@@ -216,6 +211,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               )
             else
               _buildPlaceholderImage(),
+
+            // Градиент снизу
             Positioned(
               bottom: 0,
               left: 0,
@@ -299,6 +296,24 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                 ),
                 const SizedBox(width: 16),
               ],
+
+              if (_article!.viewCount != null) ...[
+                const Icon(
+                  Icons.visibility_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${_article!.viewCount} просмотров',
+                  style: AppTextStyles.body2.copyWith(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+              ],
+
               if (_article!.createdAt != null) ...[
                 const Icon(
                   Icons.calendar_today,

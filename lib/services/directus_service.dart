@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
-import '../models/article_model.dart';
 import '../core/constants/app_constants.dart';
+import '../models/article_model.dart';
+import '../models/directus_articles_response.dart';
 
 class DirectusService {
   final Dio _dio = Dio(
@@ -47,7 +48,7 @@ class DirectusService {
       final Map<String, dynamic> queryParams = {
         'filter[status][_eq]': 'published',
         'fields':
-            'id,title,slug,excerpt,category,read_time,image_url,content,date_created',
+            'id,title,slug,excerpt,category,read_time,image_url,header_url,content,date_created',
         'sort': '-date_created', // Используем системное поле Directus
         'limit': limit,
         'offset': offset,
@@ -77,7 +78,7 @@ class DirectusService {
       print('Status Code: ${e.response?.statusCode}');
       print('Response Data: ${e.response?.data}');
       print('Headers: ${e.response?.headers}');
-      throw _handleError(e);
+      throw Exception(_handleError(e));
     }
   }
 
@@ -93,14 +94,18 @@ class DirectusService {
         },
       );
 
-      final data = response.data['data'] as List<dynamic>;
-      if (data.isEmpty) {
-        return null;
+      final data = response.data['data'];
+      if (data is List && data.isNotEmpty) {
+        return ArticleModel.fromDirectusJson(
+          data.first as Map<String, dynamic>,
+        );
       }
-
-      return ArticleModel.fromJson(data.first as Map<String, dynamic>);
+      if (data is Map<String, dynamic>) {
+        return ArticleModel.fromDirectusJson(data);
+      }
+      return null;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw Exception(_handleError(e));
     }
   }
 
@@ -113,8 +118,9 @@ class DirectusService {
           'filter[status][_eq]': 'published',
           'filter[_or][0][title][_contains]': query,
           'filter[_or][1][excerpt][_contains]': query,
-          'fields': 'id,title,slug,excerpt,category,read_time,image_url',
-          'sort[]': '-created_at',
+          'fields':
+              'id,title,slug,excerpt,category,read_time,image_url,header_url,date_created',
+          'sort': '-date_created',
           'limit': 20,
         },
       );
@@ -123,7 +129,7 @@ class DirectusService {
         response.data as Map<String, dynamic>,
       );
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw Exception(_handleError(e));
     }
   }
 
@@ -137,16 +143,18 @@ class DirectusService {
         queryParameters: {
           'filter[status][_eq]': 'published',
           'filter[id][_in]': ids.join(','),
-          'fields': 'id,title,slug,excerpt,category,read_time,image_url',
+          'fields':
+              'id,title,slug,excerpt,category,read_time,image_url,header_url,date_created',
         },
       );
 
-      final data = response.data['data'] as List<dynamic>;
+      final data = response.data['data'] as List<dynamic>? ?? [];
       return data
-          .map((item) => ArticleModel.fromJson(item as Map<String, dynamic>))
+          .map((item) =>
+              ArticleModel.fromDirectusJson(item as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw Exception(_handleError(e));
     }
   }
 
