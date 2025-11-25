@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+/// ✅ Обновлённая модель на основе реального backend API
 class AppointmentModel {
   final int id;
   final int clientId;
@@ -11,8 +12,8 @@ class AppointmentModel {
   final String appointmentDate; // LocalDate в формате YYYY-MM-DD
   final String startTime; // LocalTime в формате HH:mm
   final String endTime;
-  final String format; // video, chat, phone
-  final String status; // PENDING, CONFIRMED, COMPLETED, CANCELLED
+  final String format; // VIDEO, CHAT, AUDIO
+  final String status; // PENDING, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW
   final String? issueDescription;
   final String? notes;
   final double price;
@@ -95,7 +96,7 @@ class AppointmentModel {
     };
   }
 
-  // Вспомогательные методы для UI
+  // ✅ UI Helper Methods
   String get statusDisplayName {
     switch (status) {
       case 'PENDING':
@@ -114,13 +115,13 @@ class AppointmentModel {
   }
 
   String get formatDisplayName {
-    switch (format.toLowerCase()) {
-      case 'video':
+    switch (format.toUpperCase()) {
+      case 'VIDEO':
         return 'Видео-звонок';
-      case 'chat':
+      case 'CHAT':
         return 'Чат';
-      case 'phone':
-        return 'Телефон';
+      case 'AUDIO':
+        return 'Аудио';
       default:
         return format;
     }
@@ -129,15 +130,16 @@ class AppointmentModel {
   Color get statusColor {
     switch (status) {
       case 'PENDING':
-        return const Color(0xFFFFF4E0);
+        return const Color(0xFFFFF4E0); // Жёлтый
       case 'CONFIRMED':
-        return const Color(0xFFE3F2FD);
+        return const Color(0xFFE3F2FD); // Синий
       case 'COMPLETED':
-        return const Color(0xFFE8F5E9);
+        return const Color(0xFFE8F5E9); // Зелёный
       case 'CANCELLED':
-        return const Color(0xFFFFE8E8);
+      case 'NO_SHOW':
+        return const Color(0xFFFFE8E8); // Красный
       default:
-        return const Color(0xFFF5F5F5);
+        return const Color(0xFFF5F5F5); // Серый
     }
   }
 
@@ -150,9 +152,16 @@ class AppointmentModel {
       case 'COMPLETED':
         return const Color(0xFF4CAF50);
       case 'CANCELLED':
+      case 'NO_SHOW':
         return const Color(0xFFF44336);
       default:
         return const Color(0xFF757575);
     }
   }
+
+  // ✅ Проверки состояния
+  bool get canStart => status == 'CONFIRMED';
+  bool get canComplete => status == 'CONFIRMED';
+  bool get canCancel => status == 'PENDING' || status == 'CONFIRMED';
+  bool get needsReport => status == 'COMPLETED';
 }
