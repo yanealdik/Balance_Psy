@@ -164,7 +164,8 @@ class _HomeContentState extends State<_HomeContent> {
     return Consumer2<AuthProvider, AppointmentProvider>(
       builder: (context, authProvider, appointmentProvider, child) {
         final user = authProvider.user;
-        final userName = user?.fullName?.split(' ')[0] ?? 'Пользователь';
+        final userName =
+            user != null ? user.fullName.split(' ').first : 'Пользователь';
 
         // ✅ Получаем реальные записи
         final allAppointments = appointmentProvider.appointments;

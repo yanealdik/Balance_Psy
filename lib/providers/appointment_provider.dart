@@ -138,6 +138,39 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> startSession(int appointmentId) async {
+    try {
+      await _service.startSession(appointmentId);
+
+      // Перезагружаем список
+      await loadPsychologistAppointments();
+
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// ✅ НОВЫЙ МЕТОД: Завершить сессию
+  Future<bool> completeSession(int appointmentId) async {
+    try {
+      await _service.completeSession(appointmentId);
+
+      // Перезагружаем список
+      await loadPsychologistAppointments();
+
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// ✅ Получить предстоящие записи
   List<AppointmentModel> get upcomingAppointments {
     return _appointments.where((appointment) {

@@ -228,13 +228,7 @@ class _PsychologistScheduleScreenState
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CreateAppointmentScreen(
-          initialDate: selectedDate,
-          onAppointmentCreated: (appointment) async {
-            // ✅ Перезагружаем список после создания
-            await _loadAppointments();
-          },
-        ),
+        builder: (context) => const AppointmentScreen(),
       ),
     );
 

@@ -14,6 +14,9 @@ class CustomButton extends StatelessWidget {
   final double? height; // Высота кнопки (по умолчанию 56)
   final double? fontSize; // Размер шрифта (по умолчанию 16)
   final bool isLoading; // Показывать индикатор загрузки
+  final Color? backgroundColor; // Пользовательский цвет фона
+  final Color? textColor; // Пользовательский цвет текста
+  final Color? borderColor; // Пользовательский цвет обводки
 
   const CustomButton({
     super.key,
@@ -27,6 +30,9 @@ class CustomButton extends StatelessWidget {
     this.height,
     this.fontSize,
     this.isLoading = false,
+    this.backgroundColor,
+    this.textColor,
+    this.borderColor,
   });
 
   @override
@@ -38,7 +44,7 @@ class CustomButton extends StatelessWidget {
         color: _getBackgroundColor(),
         borderRadius: BorderRadius.circular((height ?? 56) / 2),
         border: isOutlined
-            ? Border.all(color: AppColors.primary, width: 2)
+            ? Border.all(color: borderColor ?? AppColors.primary, width: 2)
             : null,
         boxShadow: isPrimary && !isOutlined && onPressed != null
             ? [
@@ -104,9 +110,10 @@ class CustomButton extends StatelessWidget {
   Color _getBackgroundColor() {
     if (onPressed == null || isLoading) {
       // Disabled state
-      return AppColors.inputBorder;
+      return backgroundColor ?? AppColors.inputBorder;
     }
     if (isOutlined) return Colors.transparent;
+    if (backgroundColor != null) return backgroundColor!;
     return isPrimary ? AppColors.primary : AppColors.background;
   }
 
@@ -114,9 +121,10 @@ class CustomButton extends StatelessWidget {
   Color _getTextColor() {
     if (onPressed == null || isLoading) {
       // Disabled state
-      return AppColors.textTertiary;
+      return textColor ?? AppColors.textTertiary;
     }
     if (isOutlined) return AppColors.primary;
+    if (textColor != null) return textColor!;
     return isPrimary ? AppColors.textWhite : AppColors.primary;
   }
 }

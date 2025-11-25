@@ -72,4 +72,24 @@ class UserService {
       throw Exception(e.response?.data['message'] ?? 'Password change failed');
     }
   }
+
+  Future<Map<String, dynamic>?> checkOrCreateClient({
+    required String phoneNumber,
+    required String fullName,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/users/check-or-create-client',
+        data: {'phoneNumber': phoneNumber, 'fullName': fullName},
+      );
+
+      if (response.data['success'] == true) {
+        return response.data['data'];
+      }
+      return null;
+    } catch (e) {
+      print('Error checking/creating client: $e');
+      return null;
+    }
+  }
 }

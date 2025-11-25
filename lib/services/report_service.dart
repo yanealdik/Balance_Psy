@@ -115,4 +115,43 @@ class ReportService {
       throw Exception(e.response?.data['message'] ?? 'Failed to load report');
     }
   }
+
+  Future<Map<String, List<ReportModel>>> getReportsGroupedByDate() async {
+    try {
+      print('📋 Fetching reports grouped by date...');
+
+      final reports = await getMyReports();
+
+      // Группируем по датам
+      final Map<String, List<ReportModel>> grouped = {};
+
+      for (var report in reports) {
+        final dateKey = report.sessionDate; // YYYY-MM-DD
+
+        if (!grouped.containsKey(dateKey)) {
+          grouped[dateKey] = [];
+        }
+
+        grouped[dateKey]!.add(report);
+      }
+
+      // Сортируем даты (новые сверху)
+      final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+
+      final Map<String, List<ReportModel>> sortedGrouped = {};
+      for (var key in sortedKeys) {
+        sortedGrouped[key] = grouped[key]!;
+      }
+
+      return sortedGrouped;
+    } catch (e) {
+      print('❌ Error grouping reports: $e');
+      throw Exception('Failed to group reports');
+    }
+  }
+
+  /// ✅ НОВЫЙ МЕТОД: Получить историю клиента (псевдоним для существующего метода)
+  Future<List<ReportModel>> getClientHistory(int clientId) async {
+    return getClientReports(clientId);
+  }
 }

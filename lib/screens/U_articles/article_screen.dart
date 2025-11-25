@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../models/article_model.dart';
-import '../../models/article_page_response.dart';
 import '../../services/article_service.dart';
 import 'ArticleDetail/ArticleDetailScreen.dart';
 

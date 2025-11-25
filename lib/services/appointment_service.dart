@@ -137,4 +137,39 @@ class AppointmentService {
       throw Exception(e.response?.data['message'] ?? 'Failed to cancel');
     }
   }
+
+  Future<void> startSession(int appointmentId) async {
+    try {
+      print('🔵 Starting session: $appointmentId');
+      final response = await _dio.put('/api/appointments/$appointmentId/start');
+
+      if (response.data['success'] != true) {
+        throw Exception(response.data['message'] ?? 'Failed to start session');
+      }
+      print('✅ Session started');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['message'] ?? 'Failed to start session');
+    }
+  }
+
+  /// ✅ НОВЫЙ МЕТОД: Завершить сессию (PSYCHOLOGIST)
+  Future<void> completeSession(int appointmentId) async {
+    try {
+      print('🔵 Completing session: $appointmentId');
+      final response = await _dio.put(
+        '/api/appointments/$appointmentId/complete',
+      );
+
+      if (response.data['success'] != true) {
+        throw Exception(
+          response.data['message'] ?? 'Failed to complete session',
+        );
+      }
+      print('✅ Session completed');
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['message'] ?? 'Failed to complete session',
+      );
+    }
+  }
 }
