@@ -1,395 +1,513 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../widgets/custom_navbar.dart';
-import '../../../widgets/psychologist/psychologist_header.dart';
-import '../../../widgets/psychologist/stats_card.dart';
-import '../../../widgets/psychologist/request_card.dart';
-import '../../../widgets/psychologist/session_card_p.dart';
-import '../../../widgets/psychologist/notifications_bottom_sheet.dart';
 import '../../../providers/appointment_provider.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../providers/report_provider.dart';
+import '../../../models/appointment_model.dart';
+import '../../../widgets/custom_button.dart';
+import '../../P_ReportsScreen/CreateReportScreen.dart';
+import '../../P_AppointmentsScreen/AppointmentsScreen.dart';
 import '../../P_ReportsScreen/PsychologistReportsScreen.dart';
-import '../../P_ScheduleScreen/PsychologistScheduleScreen.dart';
-import '../../chats/P_chats/P_chats_screen.dart';
-import '../../profile/P_profile/psycho_profile.dart';
 
-class PsychologistHomeScreen extends StatefulWidget {
-  const PsychologistHomeScreen({super.key});
+/// Главный экран психолога
+class PHomeScreen extends StatefulWidget {
+  const PHomeScreen({super.key});
 
   @override
-  State<PsychologistHomeScreen> createState() => _PsychologistHomeScreenState();
+  State<PHomeScreen> createState() => _PHomeScreenState();
 }
 
-class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
-  int _index = 0;
+class _PHomeScreenState extends State<PHomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  final _screens = const [
-    _HomeContent(),
-    PsychologistScheduleScreen(),
-    PsychologistReportsScreen(),
-    PsychologistChatsScreen(),
-    PsychologistProfileScreen(),
-  ];
+  Future<void> _loadData() async {
+    final appointmentProvider = Provider.of<AppointmentProvider>(
+      context,
+      listen: false,
+    );
+    final reportProvider = Provider.of<ReportProvider>(context, listen: false);
 
-  void navigateToTab(int index) => setState(() => _index = index);
+    await Future.wait([
+      appointmentProvider.loadPsychologistAppointments(),
+      reportProvider.loadIncompleteReports(),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      body: _screens[_index],
-      bottomNavigationBar: CustomNavBar(
-        currentIndex: _index,
-        onTap: navigateToTab,
-        icons: NavConfig.psychologistIcons,
-        selectedColor: AppColors.primary,
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Моя практика',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: AppColors.textPrimary,
+            ),
+            onPressed: () {
+              // TODO: Переход к уведомлениям
+            },
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: AppColors.primary,
+        child: Consumer<AppointmentProvider>(
+          builder: (context, appointmentProvider, _) {
+            if (appointmentProvider.isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              );
+            }
+
+            final pendingRequests = appointmentProvider.pendingAppointments;
+            final upcomingSessions = appointmentProvider.confirmedAppointments;
+
+            return ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // Быстрые действия
+                _buildQuickActions(),
+
+                const SizedBox(height: 24),
+
+                // Статистика
+                Consumer<ReportProvider>(
+                  builder: (context, reportProvider, _) {
+                    return _buildStats(
+                      appointmentProvider.appointments.length,
+                      reportProvider.reports
+                          .where((r) => !r.isCompleted)
+                          .length,
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Заявки на подтверждение
+                if (pendingRequests.isNotEmpty) ...[
+                  _buildSectionHeader('Заявки', pendingRequests.length),
+                  const SizedBox(height: 16),
+                  ...pendingRequests.map(
+                    (request) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildRequestCard(request),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // Ближайшие сессии
+                _buildSectionHeader('Расписание', upcomingSessions.length),
+                const SizedBox(height: 16),
+
+                if (upcomingSessions.isEmpty)
+                  _buildEmptyState('Нет предстоящих сессий')
+                else
+                  ...upcomingSessions.map(
+                    (session) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildSessionCard(session),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
-}
 
-class _HomeContent extends StatefulWidget {
-  const _HomeContent();
+  /// Быстрые действия
+  Widget _buildQuickActions() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildQuickActionButton(
+            icon: Icons.add_circle_outline,
+            label: 'Новая запись',
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AppointmentScreen(),
+                ),
+              );
 
-  @override
-  State<_HomeContent> createState() => _HomeContentState();
-}
-
-class _HomeContentState extends State<_HomeContent>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-
-    // ✅ Загружаем реальные данные при инициализации
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAppointments();
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  // ✅ Загрузка записей с backend
-  Future<void> _loadAppointments() async {
-    final appointmentProvider = Provider.of<AppointmentProvider>(
-      context,
-      listen: false,
+              if (result == true) {
+                _loadData();
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildQuickActionButton(
+            icon: Icons.description_outlined,
+            label: 'Отчёты',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PsychologistReportsScreen(),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
-    await appointmentProvider.loadPsychologistAppointments();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final appointmentProvider = Provider.of<AppointmentProvider>(context);
-
-    // ✅ Получаем реальные данные из provider
-    final user = authProvider.user;
-    final allAppointments = appointmentProvider.appointments;
-
-    // ✅ Фильтруем записи по статусу
-    final pendingRequests = allAppointments
-        .where((apt) => apt.status == 'PENDING')
-        .toList();
-
-    final upcomingSessions = allAppointments
-        .where((apt) => apt.status == 'CONFIRMED')
-        .toList();
-
-    final todayAppointments = allAppointments.where((apt) {
-      final now = DateTime.now();
-      final aptDate = DateTime.parse(apt.appointmentDate);
-      return aptDate.year == now.year &&
-          aptDate.month == now.month &&
-          aptDate.day == now.day;
-    }).toList();
-
-    // ✅ Рассчитываем статистику
-    final stats = {
-      'todaySessions': todayAppointments.length,
-      'pendingRequests': pendingRequests.length,
-      'weekRevenue': _calculateWeekRevenue(allAppointments),
-      'rating': 4.9, // TODO: Получить с backend
-    };
-
-    return SafeArea(
-      child: Column(
-        children: [
-          PsychologistHeader(
-            name: user?.fullName ?? 'Психолог',
-            avatarUrl: user?.avatarUrl,
-            onNotificationsTap: _showNotificationsItem,
-            hasNotifications: pendingRequests.isNotEmpty,
-          ),
-
-          // ✅ Статистика с реальными данными
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: StatsCard(
-                    label: 'Сегодня',
-                    value: '${stats['todaySessions']}',
-                    unit: 'сессий',
-                    icon: Icons.event_note,
-                    color: const Color(0xFF4CAF50),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: StatsCard(
-                    label: 'Новые',
-                    value: '${stats['pendingRequests']}',
-                    unit: 'заявки',
-                    icon: Icons.notifications_active,
-                    color: const Color(0xFFFF9800),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: StatsCard(
-                    label: 'Неделя',
-                    value:
-                        '${((stats['weekRevenue'] as double) / 1000).toStringAsFixed(0)}к',
-                    unit: '₸',
-                    icon: Icons.wallet,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-          ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primary, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          const SizedBox(height: 24),
-          _buildTabBar(pendingRequests.length),
-          const SizedBox(height: 20),
-
-          // ✅ Показываем индикатор загрузки или контент
-          Expanded(
-            child: appointmentProvider.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildRequestsTab(pendingRequests),
-                      _buildSessionsTab(upcomingSessions),
-                    ],
-                  ),
+  /// Статистика
+  Widget _buildStats(int totalAppointments, int incompleteReports) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, Color(0xFF7C3AED)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem('Записи', totalAppointments.toString()),
+          Container(width: 1, height: 40, color: Colors.white.withOpacity(0.3)),
+          _buildStatItem(
+            'Отчёты',
+            incompleteReports.toString(),
+            subtitle: 'незавершённых',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTabBar(int requestCount) {
+  Widget _buildStatItem(String label, String value, {String? subtitle}) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        if (subtitle != null)
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Заголовок секции
+  Widget _buildSectionHeader(String title, int count) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        if (count > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              count.toString(),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Карточка заявки
+  Widget _buildRequestCard(AppointmentModel request) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: 48,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow.withOpacity(0.05),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: Colors.white,
-        unselectedLabelColor: AppColors.textSecondary,
-        labelStyle: AppTextStyles.button.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: AppTextStyles.button.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        padding: const EdgeInsets.all(4),
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Заявки'),
-                if (requestCount > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$requestCount',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundImage: request.clientAvatarUrl != null
+                    ? NetworkImage(request.clientAvatarUrl!)
+                    : null,
+                child: request.clientAvatarUrl == null
+                    ? Text(
+                        request.clientName[0].toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.clientName,
                       style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${request.appointmentDate} • ${request.startTime}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const Tab(text: 'Расписание'),
+          if (request.issueDescription != null &&
+              request.issueDescription!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              request.issueDescription!,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _handleReject(request.id),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Отклонить'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: () => _handleAccept(request.id),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Подтвердить'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildRequestsTab(List<dynamic> pendingRequests) {
-    if (pendingRequests.isEmpty) {
-      return _buildEmptyState(
-        'Нет новых заявок',
-        'Новые заявки от клиентов появятся здесь',
-        Icons.notifications_none,
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadAppointments,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        itemCount: pendingRequests.length,
-        itemBuilder: (context, index) {
-          final appointment = pendingRequests[index];
-
-          final request = {
-            'id': appointment.id,
-            'clientName': appointment.clientName,
-            'clientImage':
-                appointment.clientAvatarUrl ??
-                'https://i.pravatar.cc/150?img=25',
-            'date': _formatDate(appointment.appointmentDate),
-            'time': appointment.startTime,
-            'format': appointment.format.toLowerCase(),
-            'requestDate': _formatDateTime(appointment.createdAt),
-            'issue': appointment.issueDescription ?? 'Консультация',
-            'isFirstSession': true,
-          };
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: RequestCard(
-              request: request,
-              onAccept: () => _acceptRequest(appointment.id),
-              onDecline: () => _declineRequest(appointment.id), // ✅ Подключен
+  /// Карточка сессии
+  Widget _buildSessionCard(AppointmentModel session) {
+    return GestureDetector(
+      onTap: () => _showSessionActions(session),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: session.status == 'IN_PROGRESS'
+                ? AppColors.primary.withOpacity(0.5)
+                : Colors.transparent,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSessionsTab(List<dynamic> upcomingSessions) {
-    if (upcomingSessions.isEmpty) {
-      return _buildEmptyState(
-        'Нет запланированных сессий',
-        'Подтвержденные сессии появятся здесь',
-        Icons.event_available,
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadAppointments,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        itemCount: upcomingSessions.length,
-        itemBuilder: (context, index) {
-          final appointment = upcomingSessions[index];
-
-          // ✅ Преобразуем AppointmentModel в формат для SessionCardP
-          final session = {
-            'id': appointment.id,
-            'clientName': appointment.clientName,
-            'clientImage':
-                appointment.clientAvatarUrl ??
-                'https://i.pravatar.cc/150?img=30',
-            'date': _formatDate(appointment.appointmentDate),
-            'time': appointment.startTime,
-            'format': appointment.format.toLowerCase(),
-            'status': _getSessionStatus(
-              appointment.appointmentDate,
-              appointment.startTime,
-            ),
-            'notes': appointment.notes ?? appointment.issueDescription,
-          };
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: SessionCardP(
-              session: session,
-              onChatTap: () {
-                
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String title, String subtitle, IconData icon) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          ],
+        ),
+        child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 56,
-                color: AppColors.primary.withOpacity(0.5),
+            CircleAvatar(
+              radius: 28,
+              backgroundImage: session.clientAvatarUrl != null
+                  ? NetworkImage(session.clientAvatarUrl!)
+                  : null,
+              child: session.clientAvatarUrl == null
+                  ? Text(
+                      session.clientName[0].toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session.clientName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${session.startTime} - ${session.endTime}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: AppTextStyles.h3.copyWith(
-                fontSize: 18,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
+            // Статус
+            if (session.status == 'IN_PROGRESS')
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'В работе',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.body2.copyWith(
-                fontSize: 13,
-                color: AppColors.textTertiary,
-              ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppColors.textSecondary,
             ),
           ],
         ),
@@ -397,259 +515,466 @@ class _HomeContentState extends State<_HomeContent>
     );
   }
 
-  // ✅ Подтверждение заявки
-  Future<void> _acceptRequest(int requestId) async {
-    final appointmentProvider = Provider.of<AppointmentProvider>(
-      context,
-      listen: false,
+  /// Пустое состояние
+  Widget _buildEmptyState(String message) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          Icon(
+            Icons.event_busy,
+            size: 64,
+            color: AppColors.textSecondary.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary.withOpacity(0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
+  }
 
-    final success = await appointmentProvider.confirmAppointment(requestId);
+  /// Показать действия для сессии
+  void _showSessionActions(AppointmentModel session) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) =>
+          SessionActionsSheet(session: session, onActionCompleted: _loadData),
+    );
+  }
+
+  /// Подтвердить заявку
+  Future<void> _handleAccept(int requestId) async {
+    final provider = Provider.of<AppointmentProvider>(context, listen: false);
+
+    final success = await provider.confirmAppointment(requestId);
 
     if (!mounted) return;
 
     if (success) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check_circle,
-                  color: AppColors.success,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Заявка подтверждена!',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-            ],
-          ),
-          content: const Text(
-            'Клиент получит уведомление о подтверждении сессии.',
-            style: TextStyle(fontSize: 14),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Понятно',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Заявка подтверждена'),
+          backgroundColor: AppColors.success,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            appointmentProvider.errorMessage ?? 'Ошибка подтверждения',
-          ),
+          content: Text(provider.errorMessage ?? 'Ошибка подтверждения'),
           backgroundColor: AppColors.error,
         ),
       );
     }
   }
 
-  // ✅ Отклонение заявки
-  /// ✅ Отклонение заявки
-  Future<void> _declineRequest(int requestId) async {
-    final result = await showDialog<bool>(
+  /// Отклонить заявку
+  Future<void> _handleReject(int requestId) async {
+    // Показываем диалог для ввода причины
+    final reason = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.cancel, color: AppColors.error, size: 28),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text('Отклонить заявку?', style: TextStyle(fontSize: 18)),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Вы уверены, что хотите отклонить эту заявку? Клиент получит уведомление.',
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Отмена',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Отклонить',
-              style: TextStyle(
-                color: AppColors.error,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
+      builder: (context) => _RejectReasonDialog(),
     );
 
-    if (result != true || !mounted) return;
+    if (reason == null || reason.isEmpty) return;
 
-    final appointmentProvider = Provider.of<AppointmentProvider>(
-      context,
-      listen: false,
-    );
+    final provider = Provider.of<AppointmentProvider>(context, listen: false);
 
-    final success = await appointmentProvider.rejectAppointment(
-      requestId,
-      'Отклонено психологом',
-    );
+    final success = await provider.rejectAppointment(requestId, reason);
 
     if (!mounted) return;
 
-    if (!success) {
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Заявка отклонена'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            appointmentProvider.errorMessage ?? 'Ошибка отклонения',
-          ),
+          content: Text(provider.errorMessage ?? 'Ошибка отклонения'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+}
+
+/// Bottom sheet с действиями для сессии
+class SessionActionsSheet extends StatelessWidget {
+  final AppointmentModel session;
+  final VoidCallback onActionCompleted;
+
+  const SessionActionsSheet({
+    super.key,
+    required this.session,
+    required this.onActionCompleted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Хендл
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textSecondary.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            // Информация о клиенте
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundImage: session.clientAvatarUrl != null
+                        ? NetworkImage(session.clientAvatarUrl!)
+                        : null,
+                    child: session.clientAvatarUrl == null
+                        ? Text(
+                            session.clientName[0].toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          session.clientName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${session.appointmentDate} • ${session.startTime}-${session.endTime}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const Divider(height: 1),
+
+            // Действия
+            if (session.status == 'CONFIRMED') ...[
+              _buildActionButton(
+                context,
+                icon: Icons.play_arrow,
+                label: 'Начать сессию',
+                color: AppColors.primary,
+                onTap: () => _startSession(context),
+              ),
+              _buildActionButton(
+                context,
+                icon: Icons.cancel_outlined,
+                label: 'Отменить',
+                color: AppColors.error,
+                onTap: () => _cancelSession(context),
+              ),
+            ],
+
+            if (session.status == 'IN_PROGRESS') ...[
+              _buildActionButton(
+                context,
+                icon: Icons.check_circle_outline,
+                label: 'Завершить сессию',
+                color: AppColors.success,
+                onTap: () => _completeSession(context),
+              ),
+              _buildActionButton(
+                context,
+                icon: Icons.person_off_outlined,
+                label: 'Клиент не пришёл',
+                color: AppColors.warning,
+                onTap: () => _markAsNoShow(context),
+              ),
+            ],
+
+            // Общие действия
+            _buildActionButton(
+              context,
+              icon: Icons.chat_bubble_outline,
+              label: 'Открыть чат',
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: Переход к чату
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Функция чата в разработке'),
+                    backgroundColor: AppColors.warning,
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    Color? color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Icon(icon, color: color ?? AppColors.textPrimary),
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: color ?? AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startSession(BuildContext context) async {
+    Navigator.pop(context);
+
+    final provider = Provider.of<AppointmentProvider>(context, listen: false);
+    final success = await provider.startSession(session.id);
+
+    if (!context.mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Сессия началась'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      onActionCompleted();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Ошибка'),
           backgroundColor: AppColors.error,
         ),
       );
     }
   }
 
-  void _showNotificationsItem() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const NotificationsBottomSheet(),
-    );
-  }
+  Future<void> _completeSession(BuildContext context) async {
+    Navigator.pop(context);
 
-  // ✅ Вспомогательные методы форматирования
-  String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final now = DateTime.now();
+    final provider = Provider.of<AppointmentProvider>(context, listen: false);
+    final success = await provider.completeSession(session.id);
 
-      if (date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day) {
-        return 'Сегодня';
-      } else if (date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day + 1) {
-        return 'Завтра';
-      }
+    if (!context.mounted) return;
 
-      const months = [
-        'января',
-        'февраля',
-        'марта',
-        'апреля',
-        'мая',
-        'июня',
-        'июля',
-        'августа',
-        'сентября',
-        'октября',
-        'ноября',
-        'декабря',
-      ];
-
-      return '${date.day} ${months[date.month - 1]}';
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
-  String _formatDateTime(String dateTimeStr) {
-    try {
-      final dt = DateTime.parse(dateTimeStr);
-      final now = DateTime.now();
-      final diff = now.difference(dt);
-
-      if (diff.inMinutes < 60) {
-        return '${diff.inMinutes} мин назад';
-      } else if (diff.inHours < 24) {
-        return '${diff.inHours} ч назад';
-      } else {
-        return '${dt.day}.${dt.month}.${dt.year}';
-      }
-    } catch (e) {
-      return dateTimeStr;
-    }
-  }
-
-  String _getSessionStatus(String dateStr, String timeStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final time = timeStr.split(':');
-      final sessionDateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        int.parse(time[0]),
-        int.parse(time[1]),
+    if (success) {
+      // Предлагаем создать отчёт
+      final createReport = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Сессия завершена'),
+          content: const Text('Хотите создать отчёт о сессии?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Позже'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Создать'),
+            ),
+          ],
+        ),
       );
 
-      final now = DateTime.now();
-      final diff = sessionDateTime.difference(now);
-
-      if (diff.inMinutes < 30 && diff.inMinutes > 0) {
-        return 'soon';
-      } else if (date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day) {
-        return 'today';
+      if (createReport == true && context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CreateReportScreen(
+              appointmentId: session.id,
+              clientName: session.clientName,
+            ),
+          ),
+        );
       }
-      return 'upcoming';
-    } catch (e) {
-      return 'upcoming';
+
+      onActionCompleted();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Ошибка'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
-  double _calculateWeekRevenue(List<dynamic> appointments) {
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
+  Future<void> _cancelSession(BuildContext context) async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => _RejectReasonDialog(title: 'Причина отмены'),
+    );
 
-    return appointments
-        .where((apt) {
-          try {
-            final aptDate = DateTime.parse(apt.appointmentDate);
-            return aptDate.isAfter(weekAgo) &&
-                aptDate.isBefore(now) &&
-                apt.status == 'COMPLETED';
-          } catch (e) {
-            return false;
-          }
-        })
-        .fold(0.0, (sum, apt) => sum + (apt.price?.toDouble() ?? 0.0));
+    if (reason == null || reason.isEmpty) return;
+
+    Navigator.pop(context);
+
+    final provider = Provider.of<AppointmentProvider>(context, listen: false);
+    final success = await provider.cancelAppointment(session.id, reason);
+
+    if (!context.mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Сессия отменена'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      onActionCompleted();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Ошибка'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _markAsNoShow(BuildContext context) async {
+    Navigator.pop(context);
+
+    final provider = Provider.of<AppointmentProvider>(context, listen: false);
+    final success = await provider.markAsNoShow(session.id);
+
+    if (!context.mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Отмечено как "Клиент не явился"'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      onActionCompleted();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Ошибка'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+}
+
+/// Диалог ввода причины отклонения/отмены
+class _RejectReasonDialog extends StatefulWidget {
+  final String title;
+
+  const _RejectReasonDialog({this.title = 'Причина отклонения'});
+
+  @override
+  State<_RejectReasonDialog> createState() => _RejectReasonDialogState();
+}
+
+class _RejectReasonDialogState extends State<_RejectReasonDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        maxLines: 3,
+        decoration: const InputDecoration(
+          hintText: 'Введите причину...',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Отмена'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_controller.text.trim().isNotEmpty) {
+              Navigator.pop(context, _controller.text.trim());
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Подтвердить'),
+        ),
+      ],
+    );
   }
 }

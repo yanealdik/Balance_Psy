@@ -415,14 +415,14 @@ class _BookingScreenState extends State<BookingScreen> {
       final startHour = int.parse(startParts[0]);
       final endTime = '${(startHour + 1).toString().padLeft(2, '0')}:${startParts[1]}';
 
-      final success = await appointmentProvider.createAppointment(
-        psychologistId: widget.psychologistId,
-        date: _formatDate(selectedDate),
-        startTime: selectedTime!,
-        endTime: endTime,
-        format: selectedFormat,
-        issueDescription: selectedIssue,
-      );
+      final success = await appointmentProvider.createAppointment({
+        'date': _formatDate(selectedDate),
+        'startTime': selectedTime!,
+        'endTime': endTime,
+        'psychologistId': widget.psychologistId,
+        'format': selectedFormat,
+        'issue': selectedIssue,
+      });
 
       if (!mounted) return;
 

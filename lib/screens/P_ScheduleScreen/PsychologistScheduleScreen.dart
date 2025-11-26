@@ -7,7 +7,7 @@ import '../../widgets/psychologist/schedule/mini_calendar_widget.dart';
 import '../../widgets/psychologist/schedule/appointment_card_widget.dart';
 import '../../widgets/psychologist/schedule/full_calendar_modal.dart';
 import '../../providers/appointment_provider.dart';
-import 'Appointment/appointment.dart';
+import '../P_AppointmentsScreen/AppointmentsScreen.dart';
 
 class PsychologistScheduleScreen extends StatefulWidget {
   const PsychologistScheduleScreen({super.key});
@@ -227,9 +227,7 @@ class _PsychologistScheduleScreenState
   void _openCreateAppointmentScreen() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const AppointmentScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const AppointmentScreen()),
     );
 
     if (result != null && result is Map<String, dynamic>) {

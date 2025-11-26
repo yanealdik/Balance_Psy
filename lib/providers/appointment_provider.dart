@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
-import '../models/appointment_model.dart';
+import 'package:flutter/foundation.dart';
 import '../services/appointment_service.dart';
-import '../models/session_format.dart';
+import '../models/appointment_model.dart';
 
+/// Provider для управления записями на приём
 class AppointmentProvider with ChangeNotifier {
   final AppointmentService _service = AppointmentService();
 
@@ -14,7 +14,7 @@ class AppointmentProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  /// ✅ Загрузить записи клиента
+  /// Загрузить записи клиента
   Future<void> loadMyAppointments() async {
     _isLoading = true;
     _errorMessage = null;
@@ -32,7 +32,7 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  /// ✅ Загрузить записи психолога
+  /// Загрузить записи психолога
   Future<void> loadPsychologistAppointments() async {
     _isLoading = true;
     _errorMessage = null;
@@ -50,29 +50,27 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  /// ✅ Создать запись
-  Future<bool> createAppointment({
-    required int psychologistId,
-    required String date,
-    required String startTime,
-    required String endTime,
-    required SessionFormat format,
-    String? issueDescription,
-  }) async {
+  /// Создать новую запись
+  ///
+  /// Параметры передаются как Map с ключами:
+  /// - clientId (int, optional) - для существующего клиента
+  /// - clientPhone (String, optional) - для нового клиента
+  /// - clientName (String, optional) - для нового клиента
+  /// - appointmentDate (String) - дата в формате YYYY-MM-DD
+  /// - startTime (String) - время начала HH:mm
+  /// - endTime (String) - время окончания HH:mm
+  /// - format (String) - VIDEO, CHAT, AUDIO
+  /// - issueDescription (String, optional)
+  /// - price (double, optional)
+  Future<bool> createAppointment(Map<String, dynamic> data) async {
     try {
-      final data = {
-        'psychologistId': psychologistId,
-        'appointmentDate': date,
-        'startTime': startTime,
-        'endTime': endTime,
-        'format': format,
-        'issueDescription': issueDescription ?? '',
-      };
-
       final appointment = await _service.createAppointment(data);
+
+      // Добавляем новую запись в начало списка
       _appointments.insert(0, appointment);
       _errorMessage = null;
       notifyListeners();
+
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -81,18 +79,15 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  /// ✅ Подтвердить запись (психолог)
+  /// Подтвердить запись (психолог)
   Future<bool> confirmAppointment(int appointmentId) async {
     try {
       await _service.confirmAppointment(appointmentId);
 
-      // Обновляем локально
-      final index = _appointments.indexWhere((a) => a.id == appointmentId);
-      if (index != -1) {
-        await loadPsychologistAppointments();
-      }
-
+      // Перезагружаем список
+      await loadPsychologistAppointments();
       _errorMessage = null;
+
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -101,15 +96,15 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  /// ✅ НОВЫЙ МЕТОД: Отклонить запись (психолог)
+  /// Отклонить запись (психолог)
   Future<bool> rejectAppointment(int appointmentId, String reason) async {
     try {
       await _service.rejectAppointment(appointmentId, reason);
 
       // Перезагружаем список
       await loadPsychologistAppointments();
-
       _errorMessage = null;
+
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -118,18 +113,15 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  /// ✅ Отменить запись
+  /// Отменить запись
   Future<bool> cancelAppointment(int appointmentId, String reason) async {
     try {
       await _service.cancelAppointment(appointmentId, reason);
 
       // Перезагружаем список
-      final index = _appointments.indexWhere((a) => a.id == appointmentId);
-      if (index != -1) {
-        await loadMyAppointments();
-      }
-
+      await loadMyAppointments();
       _errorMessage = null;
+
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -138,14 +130,42 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
+  /// Начать сессию (психолог)
   Future<bool> startSession(int appointmentId) async {
     try {
       await _service.startSession(appointmentId);
 
-      // Перезагружаем список
-      await loadPsychologistAppointments();
+      // Обновляем статус записи локально
+      final index = _appointments.indexWhere((a) => a.id == appointmentId);
+      if (index != -1) {
+        final appointment = _appointments[index];
+        _appointments[index] = AppointmentModel(
+          id: appointment.id,
+          clientId: appointment.clientId,
+          clientName: appointment.clientName,
+          clientAvatarUrl: appointment.clientAvatarUrl,
+          psychologistId: appointment.psychologistId,
+          psychologistName: appointment.psychologistName,
+          psychologistAvatarUrl: appointment.psychologistAvatarUrl,
+          appointmentDate: appointment.appointmentDate,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+          format: appointment.format,
+          status: 'IN_PROGRESS', // Обновляем статус
+          issueDescription: appointment.issueDescription,
+          notes: appointment.notes,
+          price: appointment.price,
+          createdAt: appointment.createdAt,
+          confirmedAt: appointment.confirmedAt,
+          completedAt: appointment.completedAt,
+          cancelledAt: appointment.cancelledAt,
+          cancellationReason: appointment.cancellationReason,
+        );
+      }
 
       _errorMessage = null;
+      notifyListeners();
+
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -154,15 +174,42 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  /// ✅ НОВЫЙ МЕТОД: Завершить сессию
+  /// Завершить сессию (психолог)
   Future<bool> completeSession(int appointmentId) async {
     try {
       await _service.completeSession(appointmentId);
 
-      // Перезагружаем список
-      await loadPsychologistAppointments();
+      // Удаляем из текущего списка или обновляем статус
+      final index = _appointments.indexWhere((a) => a.id == appointmentId);
+      if (index != -1) {
+        final appointment = _appointments[index];
+        _appointments[index] = AppointmentModel(
+          id: appointment.id,
+          clientId: appointment.clientId,
+          clientName: appointment.clientName,
+          clientAvatarUrl: appointment.clientAvatarUrl,
+          psychologistId: appointment.psychologistId,
+          psychologistName: appointment.psychologistName,
+          psychologistAvatarUrl: appointment.psychologistAvatarUrl,
+          appointmentDate: appointment.appointmentDate,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+          format: appointment.format,
+          status: 'COMPLETED', // Обновляем статус
+          issueDescription: appointment.issueDescription,
+          notes: appointment.notes,
+          price: appointment.price,
+          createdAt: appointment.createdAt,
+          confirmedAt: appointment.confirmedAt,
+          completedAt: DateTime.now().toIso8601String(),
+          cancelledAt: appointment.cancelledAt,
+          cancellationReason: appointment.cancellationReason,
+        );
+      }
 
       _errorMessage = null;
+      notifyListeners();
+
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -171,29 +218,90 @@ class AppointmentProvider with ChangeNotifier {
     }
   }
 
-  /// ✅ Получить предстоящие записи
+  /// Отметить как "клиент не пришёл" (NO_SHOW)
+  Future<bool> markAsNoShow(int appointmentId) async {
+    try {
+      await _service.markAsNoShow(appointmentId);
+
+      // Обновляем статус записи локально
+      final index = _appointments.indexWhere((a) => a.id == appointmentId);
+      if (index != -1) {
+        final appointment = _appointments[index];
+        _appointments[index] = AppointmentModel(
+          id: appointment.id,
+          clientId: appointment.clientId,
+          clientName: appointment.clientName,
+          clientAvatarUrl: appointment.clientAvatarUrl,
+          psychologistId: appointment.psychologistId,
+          psychologistName: appointment.psychologistName,
+          psychologistAvatarUrl: appointment.psychologistAvatarUrl,
+          appointmentDate: appointment.appointmentDate,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+          format: appointment.format,
+          status: 'NO_SHOW', // Обновляем статус
+          issueDescription: appointment.issueDescription,
+          notes: appointment.notes,
+          price: appointment.price,
+          createdAt: appointment.createdAt,
+          confirmedAt: appointment.confirmedAt,
+          completedAt: appointment.completedAt,
+          cancelledAt: appointment.cancelledAt,
+          cancellationReason: 'Клиент не явился',
+        );
+      }
+
+      _errorMessage = null;
+      notifyListeners();
+
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Получить предстоящие записи
   List<AppointmentModel> get upcomingAppointments {
     return _appointments.where((appointment) {
       return appointment.status == 'PENDING' ||
-          appointment.status == 'CONFIRMED';
+          appointment.status == 'CONFIRMED' ||
+          appointment.status == 'IN_PROGRESS';
     }).toList();
   }
 
-  /// ✅ Получить завершенные записи
+  /// Получить завершённые записи
   List<AppointmentModel> get completedAppointments {
     return _appointments.where((appointment) {
       return appointment.status == 'COMPLETED';
     }).toList();
   }
 
-  /// ✅ Получить отмененные записи
+  /// Получить отменённые записи
   List<AppointmentModel> get cancelledAppointments {
     return _appointments.where((appointment) {
-      return appointment.status == 'CANCELLED';
+      return appointment.status == 'CANCELLED' ||
+          appointment.status == 'NO_SHOW';
     }).toList();
   }
 
-  /// ✅ Очистить ошибку
+  /// Получить записи, ожидающие подтверждения (для психолога)
+  List<AppointmentModel> get pendingAppointments {
+    return _appointments.where((appointment) {
+      return appointment.status == 'PENDING';
+    }).toList();
+  }
+
+  /// Получить подтверждённые записи (расписание психолога)
+  List<AppointmentModel> get confirmedAppointments {
+    return _appointments.where((appointment) {
+      return appointment.status == 'CONFIRMED' ||
+          appointment.status == 'IN_PROGRESS';
+    }).toList();
+  }
+
+  /// Очистить сообщение об ошибке
   void clearError() {
     _errorMessage = null;
     notifyListeners();

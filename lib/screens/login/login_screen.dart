@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user?.role == 'PSYCHOLOGIST') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const PsychologistHomeScreen()),
+          MaterialPageRoute(builder: (_) => const PHomeScreen()),
         );
       } else {
         Navigator.pushReplacement(

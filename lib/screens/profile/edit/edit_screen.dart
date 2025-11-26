@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../models/user_model.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_button.dart';
@@ -45,7 +46,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final updatedUser = await _userService.updateProfile(
+      final updatedUserData = await _userService.updateProfile(
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim().isEmpty
             ? null
@@ -54,6 +55,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Обновляем состояние
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final updatedUser = UserModel.fromJson(updatedUserData);
       authProvider.updateUser(updatedUser);
 
       ScaffoldMessenger.of(context).showSnackBar(
