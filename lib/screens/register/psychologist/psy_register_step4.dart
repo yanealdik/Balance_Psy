@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
-import '../../../widgets/psychologist/custom_button.dart';
+import '../../../widgets/custom_button.dart';
 import '../../../widgets/step_indicator.dart';
 import '../../../widgets/back_button.dart';
 import '../../../providers/psychologist_registration_provider.dart';

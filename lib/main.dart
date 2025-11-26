@@ -9,8 +9,12 @@ import 'providers/auth_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/registration_provider.dart';
 import 'providers/psychologist_registration_provider.dart';
+import 'providers/report_provider.dart';
+import 'providers/schedule_provider.dart';
 import 'screens/splash/splash_screen.dart'; // ✅ Добавлено
 import 'services/chat_service.dart';
+import 'services/report_service.dart';
+import 'services/schedule_service.dart';
 import 'theme/app_colors.dart';
 
 Future<void> main() async {
@@ -48,7 +52,11 @@ class BalancePsyApp extends StatelessWidget {
         ), // ✅ Добавлено
         ChangeNotifierProvider(
           create: (_) => ChatProvider(ChatService())),
-      ],
+        ChangeNotifierProvider(
+          create: (_) => ScheduleProvider()),
+        ChangeNotifierProvider(
+          create: (_) => ReportProvider()),
+      ], 
       child: MaterialApp(
         title: 'BalancePsy',
         debugShowCheckedModeBanner: false,
