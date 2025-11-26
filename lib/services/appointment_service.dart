@@ -26,20 +26,20 @@ class AppointmentService {
       final requestData = <String, dynamic>{};
 
       // Обязательные поля
-      if (data.containsKey('clientId') && data['clientId'] != null) {
+      if (data['clientId'] != null) {
         requestData['clientId'] = data['clientId'];
       }
 
-      if (data.containsKey('clientPhone') && data['clientPhone'] != null) {
+      if (data['clientPhone'] != null) {
         requestData['clientPhone'] = data['clientPhone'];
       }
 
-      if (data.containsKey('clientName') && data['clientName'] != null) {
+      if (data['clientName'] != null) {
         requestData['clientName'] = data['clientName'];
       }
 
       // Психолог определяется из токена, но можем передать явно
-      if (data.containsKey('psychologistId')) {
+      if (data['psychologistId'] != null) {
         requestData['psychologistId'] = data['psychologistId'];
       }
 
@@ -59,47 +59,38 @@ class AppointmentService {
         requestData['price'] = data['price'];
       }
 
-      print('📦 Request data: $requestData');
-      print('🚀 REQUEST: POST /api/appointments');
-
       final response = await _dio.post('/api/appointments', data: requestData);
-
-      print('✅ SUCCESS: ${response.statusCode} /api/appointments');
 
       return AppointmentModel.fromJson(response.data);
     } on DioException catch (e) {
-      print('❌ ERROR: ${e.response?.statusCode} /api/appointments');
-      print('❌ Response data: ${e.response?.data}');
-
-      if (e.response != null) {
-        final errorData = e.response!.data;
-
-        // Обработка различных ошибок
-        if (e.response!.statusCode == 403) {
-          throw Exception('Доступ запрещён. Проверьте права доступа.');
-        } else if (e.response!.statusCode == 400) {
-          // Извлекаем сообщение об ошибке валидации
-          if (errorData is Map && errorData.containsKey('message')) {
-            throw Exception(errorData['message']);
-          } else if (errorData is Map && errorData.containsKey('errors')) {
-            // Если есть список ошибок валидации
-            final errors = errorData['errors'] as Map<String, dynamic>;
-            final firstError = errors.values.first;
-            throw Exception(firstError);
-          }
-          throw Exception('Некорректные данные записи');
-        } else if (e.response!.statusCode == 404) {
-          throw Exception('Психолог не найден');
-        } else if (e.response!.statusCode == 409) {
-          throw Exception('Это время уже занято');
-        }
-
-        throw Exception(errorData['message'] ?? 'Ошибка создания записи');
+      if (e.response == null) {
+        throw Exception('Не удалось подключиться к серверу. Проверьте адрес API.');
       }
 
-      throw Exception('Ошибка соединения с сервером');
+      final errorData = e.response!.data;
+
+      // Обработка различных ошибок
+      if (e.response!.statusCode == 403) {
+        throw Exception('Доступ запрещён. Проверьте права доступа.');
+      } else if (e.response!.statusCode == 400) {
+        // Извлекаем сообщение об ошибке валидации
+        if (errorData is Map && errorData.containsKey('message')) {
+          throw Exception(errorData['message']);
+        } else if (errorData is Map && errorData.containsKey('errors')) {
+          // Если есть список ошибок валидации
+          final errors = errorData['errors'] as Map<String, dynamic>;
+          final firstError = errors.values.first;
+          throw Exception(firstError);
+        }
+        throw Exception('Некорректные данные записи');
+      } else if (e.response!.statusCode == 404) {
+        throw Exception('Психолог не найден');
+      } else if (e.response!.statusCode == 409) {
+        throw Exception('Это время уже занято');
+      }
+
+      throw Exception(errorData['message'] ?? 'Ошибка создания записи');
     } catch (e) {
-      print('❌ Unexpected error: $e');
       throw Exception('Произошла ошибка при создании записи');
     }
   }

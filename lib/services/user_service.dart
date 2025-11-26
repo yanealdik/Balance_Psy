@@ -1,32 +1,6 @@
 import 'package:dio/dio.dart';
 import '../core/api/api_client.dart';
-
-/// Модель данных клиента для поиска
-class ClientSearchResult {
-  final int id;
-  final String fullName;
-  final String phone;
-  final String? email;
-  final String? avatarUrl;
-
-  ClientSearchResult({
-    required this.id,
-    required this.fullName,
-    required this.phone,
-    this.email,
-    this.avatarUrl,
-  });
-
-  factory ClientSearchResult.fromJson(Map<String, dynamic> json) {
-    return ClientSearchResult(
-      id: json['id'] as int,
-      fullName: json['fullName'] as String,
-      phone: json['phone'] as String,
-      email: json['email'] as String?,
-      avatarUrl: json['avatarUrl'] as String?,
-    );
-  }
-}
+import '../models/client_search_result.dart';
 
 /// Сервис для работы с пользователями
 class UserService {
@@ -38,9 +12,7 @@ class UserService {
   /// Выбрасывает Exception при ошибке сервера
   Future<ClientSearchResult?> searchClientByPhone(String phone) async {
     try {
-      // Очищаем номер от лишних символов
       final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
-
       print('🔍 Searching client by phone: $cleanPhone');
 
       final response = await _dio.get(
@@ -49,22 +21,20 @@ class UserService {
       );
 
       print('✅ Client search response: ${response.statusCode}');
+      print('📦 Response data: ${response.data}');
 
+      // ✅ ИСПРАВЛЕНО: Проверяем структуру ответа
       if (response.statusCode == 200) {
-        if (response.data == null ||
-            (response.data is List && (response.data as List).isEmpty)) {
-          print('ℹ️ Client not found');
-          return null;
+        if (response.data != null && response.data['success'] == true) {
+          final userData = response.data['data'];
+
+          if (userData != null) {
+            return ClientSearchResult.fromJson(userData);
+          }
         }
 
-        // Если вернулся список, берём первого
-        if (response.data is List) {
-          final clientData = (response.data as List).first;
-          return ClientSearchResult.fromJson(clientData);
-        }
-
-        // Если вернулся объект
-        return ClientSearchResult.fromJson(response.data);
+        print('ℹ️ Client not found in response');
+        return null;
       }
 
       return null;
@@ -82,9 +52,6 @@ class UserService {
       }
 
       throw Exception('Ошибка соединения с сервером');
-    } catch (e) {
-      print('❌ Unexpected error searching client: $e');
-      throw Exception('Произошла ошибка при поиске клиента');
     }
   }
 

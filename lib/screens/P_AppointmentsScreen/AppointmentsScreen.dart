@@ -26,6 +26,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   final _issueController = TextEditingController();
   final _priceController = TextEditingController();
 
+  int? _selectedPsychologistId;
+  
   // Данные найденного клиента
   int? _foundClientId;
   String? _foundClientName;
@@ -221,7 +223,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       return;
     }
 
-    // Проверяем, что все обязательные поля заполнены
+    // ✅ ОБЯЗАТЕЛЬНАЯ ПРОВЕРКА ДАТЫ
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -242,23 +244,24 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       return;
     }
 
-    // Формируем данные для создания записи
+    // ✅ ИСПРАВЛЕНО: Правильная передача данных
     final appointmentData = <String, dynamic>{
-      'appointmentDate': DateFormat('yyyy-MM-dd').format(_selectedDate!),
+      'psychologistId':
+          _selectedPsychologistId, // ✅ Убедитесь, что это поле установлено!
+      'appointmentDate': DateFormat(
+        'yyyy-MM-dd',
+      ).format(_selectedDate!), // ✅ КРИТИЧНО
       'startTime':
           '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
       'endTime':
           '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
-      'format': _selectedFormat.toString().split('.').last,
-      'issueDescription': _issueController.text.trim(),
+      'format': sessionFormatToApi(_selectedFormat), // ✅ VIDEO, CHAT, AUDIO
     };
 
     // Добавляем данные клиента
     if (_foundClientId != null) {
-      // Существующий клиент
       appointmentData['clientId'] = _foundClientId;
     } else {
-      // Новый клиент
       if (_nameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -273,10 +276,19 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       appointmentData['clientName'] = _nameController.text.trim();
     }
 
-    // Добавляем цену если указана
-    if (_priceController.text.trim().isNotEmpty) {
-      appointmentData['price'] = double.tryParse(_priceController.text.trim());
+    // Опциональные поля
+    if (_issueController.text.trim().isNotEmpty) {
+      appointmentData['issueDescription'] = _issueController.text.trim();
     }
+
+    if (_priceController.text.trim().isNotEmpty) {
+      final price = double.tryParse(_priceController.text.trim());
+      if (price != null) {
+        appointmentData['price'] = price;
+      }
+    }
+
+    print('📦 Final appointment data: $appointmentData'); // ✅ Для отладки
 
     // Показываем загрузку
     showDialog(
@@ -292,23 +304,17 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       final success = await provider.createAppointment(appointmentData);
 
       if (!mounted) return;
-
-      // Закрываем диалог загрузки
-      Navigator.pop(context);
+      Navigator.pop(context); // Закрываем загрузку
 
       if (success) {
-        // Показываем успешное сообщение
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Запись успешно создана'),
             backgroundColor: AppColors.success,
           ),
         );
-
-        // Возвращаемся назад
         Navigator.pop(context, true);
       } else {
-        // Показываем ошибку
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(provider.errorMessage ?? 'Не удалось создать запись'),
@@ -318,9 +324,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-
-      // Закрываем диалог загрузки
-      Navigator.pop(context);
+      Navigator.pop(context); // Закрываем загрузку
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
