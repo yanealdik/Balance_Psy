@@ -10,7 +10,7 @@ class SessionCardP extends StatelessWidget {
   const SessionCardP({
     super.key,
     required this.session,
-    required this.onChatTap,
+    required this.onChatTap, required Null Function() onDetailsTap,
   });
 
   @override

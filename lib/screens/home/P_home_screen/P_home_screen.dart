@@ -14,17 +14,16 @@ import '../../P_ReportsScreen/PsychologistReportsScreen.dart';
 import '../../P_ScheduleScreen/PsychologistScheduleScreen.dart';
 import '../../chats/P_chats/P_chats_screen.dart';
 import '../../profile/P_profile/psycho_profile.dart';
+import '../../P_AppointmentsScreen/AppointmentDetailScreen.dart';
 
 class PsychologistHomeScreen extends StatefulWidget {
   const PsychologistHomeScreen({super.key});
-
   @override
   State<PsychologistHomeScreen> createState() => _PsychologistHomeScreenState();
 }
 
 class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
   int _index = 0;
-
   final _screens = const [
     _HomeContent(),
     PsychologistScheduleScreen(),
@@ -32,9 +31,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
     PsychologistChatsScreen(),
     PsychologistProfileScreen(),
   ];
-
   void navigateToTab(int index) => setState(() => _index = index);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,7 +49,6 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
 
 class _HomeContent extends StatefulWidget {
   const _HomeContent();
-
   @override
   State<_HomeContent> createState() => _HomeContentState();
 }
@@ -60,13 +56,10 @@ class _HomeContent extends StatefulWidget {
 class _HomeContentState extends State<_HomeContent>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    // ✅ Загружаем реальные данные при инициализации
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAppointments();
     });
@@ -78,7 +71,6 @@ class _HomeContentState extends State<_HomeContent>
     super.dispose();
   }
 
-  // ✅ Загрузка записей с backend
   Future<void> _loadAppointments() async {
     final appointmentProvider = Provider.of<AppointmentProvider>(
       context,
@@ -91,8 +83,6 @@ class _HomeContentState extends State<_HomeContent>
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final appointmentProvider = Provider.of<AppointmentProvider>(context);
-
-    // ✅ Получаем реальные данные из provider
     final user = authProvider.user;
     final allAppointments = appointmentProvider.appointments;
 
@@ -118,7 +108,7 @@ class _HomeContentState extends State<_HomeContent>
       'todaySessions': todayAppointments.length,
       'pendingRequests': pendingRequests.length,
       'weekRevenue': _calculateWeekRevenue(allAppointments),
-      'rating': 4.9, // TODO: Получить с backend
+      'rating': 4.9,
     };
 
     return SafeArea(
@@ -131,7 +121,7 @@ class _HomeContentState extends State<_HomeContent>
             hasNotifications: pendingRequests.isNotEmpty,
           ),
 
-          // ✅ Статистика с реальными данными
+          // Статистика
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Row(
@@ -174,7 +164,6 @@ class _HomeContentState extends State<_HomeContent>
           _buildTabBar(pendingRequests.length),
           const SizedBox(height: 20),
 
-          // ✅ Показываем индикатор загрузки или контент
           Expanded(
             child: appointmentProvider.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -269,7 +258,6 @@ class _HomeContentState extends State<_HomeContent>
         Icons.notifications_none,
       );
     }
-
     return RefreshIndicator(
       onRefresh: _loadAppointments,
       child: ListView.builder(
@@ -297,7 +285,7 @@ class _HomeContentState extends State<_HomeContent>
             child: RequestCard(
               request: request,
               onAccept: () => _acceptRequest(appointment.id),
-              onDecline: () => _declineRequest(appointment.id), // ✅ Подключен
+              onDecline: () => _declineRequest(appointment.id),
             ),
           );
         },
@@ -313,7 +301,6 @@ class _HomeContentState extends State<_HomeContent>
         Icons.event_available,
       );
     }
-
     return RefreshIndicator(
       onRefresh: _loadAppointments,
       child: ListView.builder(
@@ -322,7 +309,6 @@ class _HomeContentState extends State<_HomeContent>
         itemBuilder: (context, index) {
           final appointment = upcomingSessions[index];
 
-          // ✅ Преобразуем AppointmentModel в формат для SessionCardP
           final session = {
             'id': appointment.id,
             'clientName': appointment.clientName,
@@ -343,8 +329,19 @@ class _HomeContentState extends State<_HomeContent>
             padding: const EdgeInsets.only(bottom: 16),
             child: SessionCardP(
               session: session,
-              onChatTap: () {
-                
+              onChatTap: () {},
+              onDetailsTap: () {
+                // ✅ Переход к деталям записи
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AppointmentDetailScreen(appointment: appointment),
+                  ),
+                ).then((_) {
+                  // Обновляем список после возврата
+                  _loadAppointments();
+                });
               },
             ),
           );
@@ -397,13 +394,11 @@ class _HomeContentState extends State<_HomeContent>
     );
   }
 
-  // ✅ Подтверждение заявки
   Future<void> _acceptRequest(int requestId) async {
     final appointmentProvider = Provider.of<AppointmentProvider>(
       context,
       listen: false,
     );
-
     final success = await appointmentProvider.confirmAppointment(requestId);
 
     if (!mounted) return;
@@ -468,8 +463,6 @@ class _HomeContentState extends State<_HomeContent>
     }
   }
 
-  // ✅ Отклонение заявки
-  /// ✅ Отклонение заявки
   Future<void> _declineRequest(int requestId) async {
     final result = await showDialog<bool>(
       context: context,
@@ -516,7 +509,6 @@ class _HomeContentState extends State<_HomeContent>
         ],
       ),
     );
-
     if (result != true || !mounted) return;
 
     final appointmentProvider = Provider.of<AppointmentProvider>(
@@ -552,12 +544,10 @@ class _HomeContentState extends State<_HomeContent>
     );
   }
 
-  // ✅ Вспомогательные методы форматирования
   String _formatDate(String dateStr) {
     try {
       final date = DateTime.parse(dateStr);
       final now = DateTime.now();
-
       if (date.year == now.year &&
           date.month == now.month &&
           date.day == now.day) {
@@ -594,7 +584,6 @@ class _HomeContentState extends State<_HomeContent>
       final dt = DateTime.parse(dateTimeStr);
       final now = DateTime.now();
       final diff = now.difference(dt);
-
       if (diff.inMinutes < 60) {
         return '${diff.inMinutes} мин назад';
       } else if (diff.inHours < 24) {
@@ -618,7 +607,6 @@ class _HomeContentState extends State<_HomeContent>
         int.parse(time[0]),
         int.parse(time[1]),
       );
-
       final now = DateTime.now();
       final diff = sessionDateTime.difference(now);
 
@@ -638,7 +626,6 @@ class _HomeContentState extends State<_HomeContent>
   double _calculateWeekRevenue(List<dynamic> appointments) {
     final now = DateTime.now();
     final weekAgo = now.subtract(const Duration(days: 7));
-
     return appointments
         .where((apt) {
           try {
