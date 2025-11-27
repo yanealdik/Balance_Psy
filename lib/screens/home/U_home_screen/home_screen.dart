@@ -6,7 +6,6 @@ import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_calendar.dart';
 import '../../../widgets/session_card.dart';
 import '../../../widgets/home/welcome_card.dart';
-import '../../../widgets/home/mood_tracker.dart';
 import '../../../widgets/home/top_bar.dart';
 import '../../../widgets/home/section_header.dart';
 import '../../../providers/auth_provider.dart';
@@ -256,10 +255,6 @@ class _HomeContentState extends State<_HomeContent> {
                                 upcomingAppointment.status == 'CONFIRMED',
                           ),
 
-                        const SizedBox(height: 30),
-                        SectionHeader(title: 'Твоё настроение'),
-                        const SizedBox(height: 16),
-                        MoodTracker(onMoodSelected: _saveMood),
                         const SizedBox(height: 30),
                         SectionHeader(
                           title: 'Полезно для тебя',
