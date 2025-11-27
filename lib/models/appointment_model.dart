@@ -103,6 +103,8 @@ class AppointmentModel {
         return 'Ожидается';
       case 'CONFIRMED':
         return 'Подтверждено';
+      case 'IN_PROGRESS': 
+        return 'В процессе'; 
       case 'COMPLETED':
         return 'Завершено';
       case 'CANCELLED':

@@ -6,7 +6,7 @@ import '../../../widgets/custom_navbar.dart';
 import '../../../widgets/psychologist/psychologist_header.dart';
 import '../../../widgets/psychologist/stats_card.dart';
 import '../../../widgets/psychologist/request_card.dart';
-import '../../../widgets/psychologist/session_card_p.dart';
+import '../../../widgets/session_card_p.dart';
 import '../../../widgets/psychologist/notifications_bottom_sheet.dart';
 import '../../../providers/appointment_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -14,7 +14,7 @@ import '../../P_ReportsScreen/PsychologistReportsScreen.dart';
 import '../../P_ScheduleScreen/PsychologistScheduleScreen.dart';
 import '../../chats/P_chats/P_chats_screen.dart';
 import '../../profile/P_profile/psycho_profile.dart';
-import '../../P_AppointmentsScreen/AppointmentDetailScreen.dart';
+import '../../P_AppointmentsScreen/SessionControlScreen.dart';
 
 class PsychologistHomeScreen extends StatefulWidget {
   const PsychologistHomeScreen({super.key});
@@ -86,16 +86,24 @@ class _HomeContentState extends State<_HomeContent>
     final user = authProvider.user;
     final allAppointments = appointmentProvider.appointments;
 
-    // ✅ Фильтруем записи по статусу
+    // ✅ ИСПРАВЛЕНО: Фильтруем записи по статусу
     final pendingRequests = allAppointments
         .where((apt) => apt.status == 'PENDING')
         .toList();
 
+    // ✅ ИСПРАВЛЕНО: Показываем CONFIRMED и IN_PROGRESS сессии
     final upcomingSessions = allAppointments
-        .where((apt) => apt.status == 'CONFIRMED')
+        .where(
+          (apt) => apt.status == 'CONFIRMED' || apt.status == 'IN_PROGRESS',
+        )
         .toList();
 
+    // ✅ НОВАЯ ЛОГИКА: Отдельно фильтруем сегодняшние сессии
     final todayAppointments = allAppointments.where((apt) {
+      if (apt.status == 'CANCELLED' || apt.status == 'NO_SHOW') {
+        return false;
+      }
+
       final now = DateTime.now();
       final aptDate = DateTime.parse(apt.appointmentDate);
       return aptDate.year == now.year &&
@@ -301,6 +309,19 @@ class _HomeContentState extends State<_HomeContent>
         Icons.event_available,
       );
     }
+
+    // ✅ КРИТИЧНО: Сортируем по дате и времени
+    upcomingSessions.sort((a, b) {
+      final dateA = DateTime.parse(a.appointmentDate);
+      final dateB = DateTime.parse(b.appointmentDate);
+      final comparison = dateA.compareTo(dateB);
+
+      if (comparison != 0) return comparison;
+
+      // Если даты равны, сортируем по времени
+      return a.startTime.compareTo(b.startTime);
+    });
+
     return RefreshIndicator(
       onRefresh: _loadAppointments,
       child: ListView.builder(
@@ -318,10 +339,7 @@ class _HomeContentState extends State<_HomeContent>
             'date': _formatDate(appointment.appointmentDate),
             'time': appointment.startTime,
             'format': appointment.format.toLowerCase(),
-            'status': _getSessionStatus(
-              appointment.appointmentDate,
-              appointment.startTime,
-            ),
+            'status': _getSessionStatus(appointment),
             'notes': appointment.notes ?? appointment.issueDescription,
           };
 
@@ -331,12 +349,12 @@ class _HomeContentState extends State<_HomeContent>
               session: session,
               onChatTap: () {},
               onDetailsTap: () {
-                // ✅ Переход к деталям записи
+                // ✅ ИСПРАВЛЕНО: Переход в SessionControlScreen
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        AppointmentDetailScreen(appointment: appointment),
+                        SessionControlScreen(appointment: appointment),
                   ),
                 ).then((_) {
                   // Обновляем список после возврата
@@ -596,10 +614,16 @@ class _HomeContentState extends State<_HomeContent>
     }
   }
 
-  String _getSessionStatus(String dateStr, String timeStr) {
+  // ✅ ИСПРАВЛЕНА: Логика определения статуса сессии
+  String _getSessionStatus(dynamic appointment) {
+    // Если статус уже IN_PROGRESS, возвращаем его
+    if (appointment.status == 'IN_PROGRESS') {
+      return 'in_progress';
+    }
+
     try {
-      final date = DateTime.parse(dateStr);
-      final time = timeStr.split(':');
+      final date = DateTime.parse(appointment.appointmentDate);
+      final time = appointment.startTime.split(':');
       final sessionDateTime = DateTime(
         date.year,
         date.month,
@@ -608,15 +632,26 @@ class _HomeContentState extends State<_HomeContent>
         int.parse(time[1]),
       );
       final now = DateTime.now();
+
+      // ✅ ИСПРАВЛЕНО: Если сессия в прошлом, возвращаем 'past'
+      if (sessionDateTime.isBefore(now)) {
+        return 'past';
+      }
+
       final diff = sessionDateTime.difference(now);
 
+      // Скоро начнётся (менее 30 минут)
       if (diff.inMinutes < 30 && diff.inMinutes > 0) {
         return 'soon';
-      } else if (date.year == now.year &&
+      }
+      // Сегодня
+      else if (date.year == now.year &&
           date.month == now.month &&
           date.day == now.day) {
         return 'today';
       }
+
+      // Будущая сессия
       return 'upcoming';
     } catch (e) {
       return 'upcoming';

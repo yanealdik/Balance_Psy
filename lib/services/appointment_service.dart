@@ -54,7 +54,9 @@ class AppointmentService {
           return AppointmentModel.fromJson(responseData['data']);
         } else if (responseData is Map && responseData['id'] != null) {
           // Если backend вернул объект напрямую
-          return AppointmentModel.fromJson(responseData as Map<String, dynamic>);
+          return AppointmentModel.fromJson(
+            responseData as Map<String, dynamic>,
+          );
         }
       }
 
