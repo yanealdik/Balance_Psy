@@ -76,7 +76,7 @@ class _PsychologistProfileScreenState extends State<PsychologistProfileScreen> {
     final ImageProvider avatarImage =
         (_avatarUrl != null && _avatarUrl!.isNotEmpty)
         ? NetworkImage(_avatarUrl!)
-        : const AssetImage('assets/images/avatar/Galiya.png');
+        : const AssetImage('assets/images/article/body.png');
 
     return Material(
       color: AppColors.backgroundLight,
