@@ -70,7 +70,6 @@ class PsychologistProfileData {
   final int totalSessions;
   final bool isAvailable;
   final bool isVerified;
-  final String verificationStatus;
 
   PsychologistProfileData({
     required this.profileId,
@@ -86,25 +85,24 @@ class PsychologistProfileData {
     required this.totalSessions,
     required this.isAvailable,
     required this.isVerified,
-    required this.verificationStatus,
   });
 
   factory PsychologistProfileData.fromJson(Map<String, dynamic> json) {
+    // ✅ ИСПРАВЛЕНО: Безопасное извлечение данных с проверкой на null
     return PsychologistProfileData(
       profileId: json['profileId'] as int,
-      specialization: json['specialization'] as String,
-      experienceYears: json['experienceYears'] as int,
-      bio: json['bio'] as String,
-      approaches: (json['approaches'] as List).cast<String>(),
-      education: json['education'] as String,
+      specialization: json['specialization'] as String? ?? '',
+      experienceYears: json['experienceYears'] as int? ?? 0,
+      bio: json['bio'] as String? ?? '',
+      approaches: (json['approaches'] as List?)?.cast<String>() ?? [],
+      education: json['education'] as String? ?? '',
       certificateUrl: json['certificateUrl'] as String?,
-      hourlyRate: (json['hourlyRate'] as num).toDouble(),
-      rating: (json['rating'] as num).toDouble(),
-      reviewsCount: json['reviewsCount'] as int,
-      totalSessions: json['totalSessions'] as int,
-      isAvailable: json['isAvailable'] as bool,
-      isVerified: json['isVerified'] as bool,
-      verificationStatus: json['verificationStatus'] as String,
+      hourlyRate: (json['hourlyRate'] as num?)?.toDouble() ?? 0.0,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewsCount: json['reviewsCount'] as int? ?? 0,
+      totalSessions: json['totalSessions'] as int? ?? 0,
+      isAvailable: json['isAvailable'] as bool? ?? false,
+      isVerified: json['isVerified'] as bool? ?? false,
     );
   }
 }

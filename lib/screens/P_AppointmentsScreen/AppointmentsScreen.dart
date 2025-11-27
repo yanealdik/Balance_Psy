@@ -219,6 +219,8 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   }
 
   /// Создание записи
+  // В методе _createAppointment() заменить проверку профиля психолога:
+
   Future<void> _createAppointment() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -238,83 +240,104 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       return;
     }
 
-    // ✅ КРИТИЧНО: Получаем psychologistId из профиля психолога
-    // Получаем профиль психолога с сервера (содержит profileId)
-    final ProfileResponse profile = await AuthService().getProfile();
-    final psychologistProfile = profile.psychologistProfile;
-    if (psychologistProfile == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Профиль психолога не найден')));
-      }
-      return;
-    }
-
-    final appointmentData = <String, dynamic>{
-      'psychologistId': psychologistProfile.profileId, // ✅ ИСПРАВЛЕНО
-      'appointmentDate': DateFormat('yyyy-MM-dd').format(_selectedDate!),
-      'startTime':
-          '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
-      'endTime':
-          '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
-      'format': sessionFormatToApi(_selectedFormat),
-    };
-
-    // Добавляем данные клиента
-    if (_foundClientId != null) {
-      appointmentData['clientId'] = _foundClientId;
-    } else {
-      if (_nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Введите имя клиента')));
-        return;
-      }
-
-      appointmentData['clientPhone'] = _phoneController.text.trim();
-      appointmentData['clientName'] = _nameController.text.trim();
-    }
-
-    // Опциональные поля
-    if (_issueController.text.trim().isNotEmpty) {
-      appointmentData['issueDescription'] = _issueController.text.trim();
-    }
-
-    print('📦 Final appointment data: $appointmentData');
-
-    // Создаём запись
     setState(() => _isCreating = true);
 
     try {
+      // ✅ ИСПРАВЛЕНО: Безопасное получение профиля психолога
+      final ProfileResponse profile = await AuthService().getProfile();
+      final psychologistProfile = profile.psychologistProfile;
+
+      // ✅ ПРОВЕРКА: Есть ли профиль психолога
+      if (psychologistProfile == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Профиль психолога не найден. Обратитесь к администратору.',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        setState(() => _isCreating = false);
+        return;
+      }
+
+      // ✅ Формируем данные записи
+      final appointmentData = <String, dynamic>{
+        'psychologistId': psychologistProfile.profileId,
+        'appointmentDate': DateFormat('yyyy-MM-dd').format(_selectedDate!),
+        'startTime':
+            '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
+        'endTime':
+            '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
+        'format': sessionFormatToApi(_selectedFormat),
+      };
+
+      // Добавляем данные клиента
+      if (_foundClientId != null) {
+        appointmentData['clientId'] = _foundClientId;
+      } else {
+        if (_nameController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Введите имя клиента')));
+          setState(() => _isCreating = false);
+          return;
+        }
+
+        appointmentData['clientPhone'] = _phoneController.text.trim();
+        appointmentData['clientName'] = _nameController.text.trim();
+      }
+
+      // Опциональные поля
+      if (_issueController.text.trim().isNotEmpty) {
+        appointmentData['issueDescription'] = _issueController.text.trim();
+      }
+
+      print('📦 Final appointment data: $appointmentData');
+
+      // Создаём запись
       final appointmentProvider = Provider.of<AppointmentProvider>(
         context,
         listen: false,
       );
+
       final success = await appointmentProvider.createAppointment(
         appointmentData,
       );
 
-      if (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Запись успешно создана')));
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Запись успешно создана'),
+              backgroundColor: AppColors.success,
+            ),
+          );
           Navigator.pop(context, true);
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Не удалось создать запись')));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                appointmentProvider.errorMessage ?? 'Не удалось создать запись',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
         }
       }
     } catch (e) {
-      if (!mounted) return;
+      print('❌ Error creating appointment: $e');
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isCreating = false);

@@ -67,7 +67,10 @@ class _BookingScreenState extends State<BookingScreen> {
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Запись на сессию', style: AppTextStyles.h3.copyWith(fontSize: 18)),
+        title: Text(
+          'Запись на сессию',
+          style: AppTextStyles.h3.copyWith(fontSize: 18),
+        ),
       ),
       body: SafeArea(
         child: Column(
@@ -80,19 +83,31 @@ class _BookingScreenState extends State<BookingScreen> {
                   children: [
                     _buildPsychologistInfo(),
                     const SizedBox(height: 24),
-                    Text('Формат сессии', style: AppTextStyles.h3.copyWith(fontSize: 18)),
+                    Text(
+                      'Формат сессии',
+                      style: AppTextStyles.h3.copyWith(fontSize: 18),
+                    ),
                     const SizedBox(height: 12),
                     _buildFormatSelector(),
                     const SizedBox(height: 24),
-                    Text('Выберите дату', style: AppTextStyles.h3.copyWith(fontSize: 18)),
+                    Text(
+                      'Выберите дату',
+                      style: AppTextStyles.h3.copyWith(fontSize: 18),
+                    ),
                     const SizedBox(height: 12),
                     _buildDateSelector(),
                     const SizedBox(height: 24),
-                    Text('Доступное время', style: AppTextStyles.h3.copyWith(fontSize: 18)),
+                    Text(
+                      'Доступное время',
+                      style: AppTextStyles.h3.copyWith(fontSize: 18),
+                    ),
                     const SizedBox(height: 12),
                     _buildTimeSlots(),
                     const SizedBox(height: 24),
-                    Text('Тема обращения', style: AppTextStyles.h3.copyWith(fontSize: 18)),
+                    Text(
+                      'Тема обращения',
+                      style: AppTextStyles.h3.copyWith(fontSize: 18),
+                    ),
                     const SizedBox(height: 12),
                     _buildIssueSelector(),
                     const SizedBox(height: 24),
@@ -138,9 +153,15 @@ class _BookingScreenState extends State<BookingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.psychologistName, style: AppTextStyles.h3.copyWith(fontSize: 17)),
+                Text(
+                  widget.psychologistName,
+                  style: AppTextStyles.h3.copyWith(fontSize: 17),
+                ),
                 const SizedBox(height: 4),
-                Text(widget.specialty, style: AppTextStyles.body2.copyWith(fontSize: 13)),
+                Text(
+                  widget.specialty,
+                  style: AppTextStyles.body2.copyWith(fontSize: 13),
+                ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -148,7 +169,10 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(width: 4),
                     Text(
                       widget.rating.toString(),
-                      style: AppTextStyles.body2.copyWith(fontSize: 13, fontWeight: FontWeight.w600),
+                      style: AppTextStyles.body2.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -163,11 +187,29 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _buildFormatSelector() {
     return Row(
       children: [
-        Expanded(child: _buildFormatOption(SessionFormat.video, 'Видео-звонок', Icons.videocam_outlined)),
+        Expanded(
+          child: _buildFormatOption(
+            SessionFormat.video,
+            'Видео-звонок',
+            Icons.videocam_outlined,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _buildFormatOption(SessionFormat.chat, 'Чат', Icons.chat_bubble_outline)),
+        Expanded(
+          child: _buildFormatOption(
+            SessionFormat.chat,
+            'Чат',
+            Icons.chat_bubble_outline,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _buildFormatOption(SessionFormat.audio, 'Телефон', Icons.phone_outlined)),
+        Expanded(
+          child: _buildFormatOption(
+            SessionFormat.audio,
+            'Телефон',
+            Icons.phone_outlined,
+          ),
+        ),
       ],
     );
   }
@@ -179,7 +221,9 @@ class _BookingScreenState extends State<BookingScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.1) : AppColors.cardBackground,
+          color: isSelected
+              ? AppColors.primary.withOpacity(0.1)
+              : AppColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.inputBorder,
@@ -188,7 +232,11 @@ class _BookingScreenState extends State<BookingScreen> {
         ),
         child: Column(
           children: [
-            Icon(icon, color: isSelected ? AppColors.primary : AppColors.textSecondary, size: 32),
+            Icon(
+              icon,
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              size: 32,
+            ),
             const SizedBox(height: 8),
             Text(
               label,
@@ -222,10 +270,14 @@ class _BookingScreenState extends State<BookingScreen> {
                 width: 60,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : AppColors.cardBackground,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.cardBackground,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.inputBorder,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.inputBorder,
                     width: 1.5,
                   ),
                 ),
@@ -236,7 +288,9 @@ class _BookingScreenState extends State<BookingScreen> {
                       _getWeekday(date.weekday),
                       style: AppTextStyles.body2.copyWith(
                         fontSize: 12,
-                        color: isSelected ? AppColors.textWhite : AppColors.textSecondary,
+                        color: isSelected
+                            ? AppColors.textWhite
+                            : AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -244,7 +298,9 @@ class _BookingScreenState extends State<BookingScreen> {
                       date.day.toString(),
                       style: AppTextStyles.h3.copyWith(
                         fontSize: 20,
-                        color: isSelected ? AppColors.textWhite : AppColors.textPrimary,
+                        color: isSelected
+                            ? AppColors.textWhite
+                            : AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -300,7 +356,9 @@ class _BookingScreenState extends State<BookingScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : AppColors.cardBackground,
+              color: isSelected
+                  ? AppColors.primary.withOpacity(0.1)
+                  : AppColors.cardBackground,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected ? AppColors.primary : AppColors.inputBorder,
@@ -312,7 +370,9 @@ class _BookingScreenState extends State<BookingScreen> {
               children: [
                 Icon(
                   issue['icon'],
-                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -320,7 +380,9 @@ class _BookingScreenState extends State<BookingScreen> {
                   issue['title'],
                   style: AppTextStyles.body1.copyWith(
                     fontSize: 14,
-                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textPrimary,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
@@ -345,7 +407,11 @@ class _BookingScreenState extends State<BookingScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+              const Icon(
+                Icons.info_outline,
+                color: AppColors.primary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Информация о записи',
@@ -363,10 +429,7 @@ class _BookingScreenState extends State<BookingScreen> {
             '• Стоимость: ${widget.hourlyRate.toStringAsFixed(0)} ₸/час\n'
             '• Психолог подтвердит запись в течение 2 часов\n'
             '• Отменить можно за 24 часа до начала',
-            style: AppTextStyles.body2.copyWith(
-              fontSize: 13,
-              height: 1.5,
-            ),
+            style: AppTextStyles.body2.copyWith(fontSize: 13, height: 1.5),
           ),
         ],
       ),
@@ -389,13 +452,17 @@ class _BookingScreenState extends State<BookingScreen> {
       child: SafeArea(
         child: CustomButton(
           text: _isCreating ? 'Отправка...' : 'Отправить заявку',
-          onPressed: selectedTime != null && !_isCreating ? _confirmBooking : null,
+          onPressed: selectedTime != null && !_isCreating
+              ? _confirmBooking
+              : null,
           isFullWidth: true,
           isLoading: _isCreating,
         ),
       ),
     );
   }
+
+  // В методе _confirmBooking() заменить на:
 
   Future<void> _confirmBooking() async {
     if (selectedTime == null || selectedIssue.isEmpty) {
@@ -408,20 +475,27 @@ class _BookingScreenState extends State<BookingScreen> {
     setState(() => _isCreating = true);
 
     try {
-      final appointmentProvider = Provider.of<AppointmentProvider>(context, listen: false);
-      
+      final appointmentProvider = Provider.of<AppointmentProvider>(
+        context,
+        listen: false,
+      );
+
       // Вычисляем endTime (час после startTime)
       final startParts = selectedTime!.split(':');
       final startHour = int.parse(startParts[0]);
-      final endTime = '${(startHour + 1).toString().padLeft(2, '0')}:${startParts[1]}';
+      final endTime =
+          '${(startHour + 1).toString().padLeft(2, '0')}:${startParts[1]}';
 
+      // ✅ ИСПРАВЛЕНО: Правильный формат данных
       final success = await appointmentProvider.createAppointment({
-        'date': _formatDate(selectedDate),
-        'startTime': selectedTime!,
-        'endTime': endTime,
         'psychologistId': widget.psychologistId,
-        'format': selectedFormat,
-        'issue': selectedIssue,
+        'appointmentDate': _formatDate(selectedDate), // ✅ YYYY-MM-DD
+        'startTime': selectedTime!, // ✅ HH:mm
+        'endTime': endTime, // ✅ HH:mm
+        'format': sessionFormatToApi(
+          selectedFormat,
+        ), // ✅ 'VIDEO'/'CHAT'/'AUDIO'
+        'issueDescription': selectedIssue, // ✅ Правильное поле
       });
 
       if (!mounted) return;
@@ -435,7 +509,9 @@ class _BookingScreenState extends State<BookingScreen> {
         );
         Navigator.pop(context, true);
       } else {
-        throw Exception(appointmentProvider.errorMessage ?? 'Ошибка создания записи');
+        throw Exception(
+          appointmentProvider.errorMessage ?? 'Ошибка создания записи',
+        );
       }
     } catch (e) {
       if (!mounted) return;
