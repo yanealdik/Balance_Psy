@@ -7,6 +7,8 @@ import '../../widgets/custom_button.dart';
 import '../../providers/appointment_provider.dart';
 import '../../services/user_service.dart';
 import '../../models/session_format.dart';
+import '../../services/auth_service.dart';
+import '../../models/profile_response.dart';
 
 /// Экран создания записи психологом для клиента
 class AppointmentScreen extends StatefulWidget {
@@ -26,8 +28,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   final _issueController = TextEditingController();
   final _priceController = TextEditingController();
 
-  int? _selectedPsychologistId;
-  
+  bool _isCreating = false;
   // Данные найденного клиента
   int? _foundClientId;
   String? _foundClientName;
@@ -223,39 +224,41 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       return;
     }
 
-    // ✅ ОБЯЗАТЕЛЬНАЯ ПРОВЕРКА ДАТЫ
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Выберите дату сессии'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Выберите дату сессии')));
       return;
     }
 
     if (_startTime == null || _endTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Выберите время сессии'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Выберите время сессии')));
       return;
     }
 
-    // ✅ ИСПРАВЛЕНО: Правильная передача данных
+    // ✅ КРИТИЧНО: Получаем psychologistId из профиля психолога
+    // Получаем профиль психолога с сервера (содержит profileId)
+    final ProfileResponse profile = await AuthService().getProfile();
+    final psychologistProfile = profile.psychologistProfile;
+    if (psychologistProfile == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Профиль психолога не найден')));
+      }
+      return;
+    }
+
     final appointmentData = <String, dynamic>{
-      'psychologistId':
-          _selectedPsychologistId, // ✅ Убедитесь, что это поле установлено!
-      'appointmentDate': DateFormat(
-        'yyyy-MM-dd',
-      ).format(_selectedDate!), // ✅ КРИТИЧНО
+      'psychologistId': psychologistProfile.profileId, // ✅ ИСПРАВЛЕНО
+      'appointmentDate': DateFormat('yyyy-MM-dd').format(_selectedDate!),
       'startTime':
           '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
       'endTime':
           '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
-      'format': sessionFormatToApi(_selectedFormat), // ✅ VIDEO, CHAT, AUDIO
+      'format': sessionFormatToApi(_selectedFormat),
     };
 
     // Добавляем данные клиента
@@ -263,12 +266,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       appointmentData['clientId'] = _foundClientId;
     } else {
       if (_nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Введите имя клиента'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Введите имя клиента')));
         return;
       }
 
@@ -281,57 +281,44 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       appointmentData['issueDescription'] = _issueController.text.trim();
     }
 
-    if (_priceController.text.trim().isNotEmpty) {
-      final price = double.tryParse(_priceController.text.trim());
-      if (price != null) {
-        appointmentData['price'] = price;
-      }
-    }
+    print('📦 Final appointment data: $appointmentData');
 
-    print('📦 Final appointment data: $appointmentData'); // ✅ Для отладки
-
-    // Показываем загрузку
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      ),
-    );
+    // Создаём запись
+    setState(() => _isCreating = true);
 
     try {
-      final provider = Provider.of<AppointmentProvider>(context, listen: false);
-      final success = await provider.createAppointment(appointmentData);
-
-      if (!mounted) return;
-      Navigator.pop(context); // Закрываем загрузку
+      final appointmentProvider = Provider.of<AppointmentProvider>(
+        context,
+        listen: false,
+      );
+      final success = await appointmentProvider.createAppointment(
+        appointmentData,
+      );
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Запись успешно создана'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.pop(context, true);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Запись успешно создана')));
+          Navigator.pop(context, true);
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.errorMessage ?? 'Не удалось создать запись'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Не удалось создать запись')));
+        }
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // Закрываем загрузку
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
     }
   }
 
@@ -683,7 +670,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             // Кнопка создания
             CustomButton(
               text: 'Создать запись',
-              onPressed: _createAppointment,
+              onPressed: _isCreating ? null : _createAppointment,
               isFullWidth: true,
               showArrow: true,
             ),
