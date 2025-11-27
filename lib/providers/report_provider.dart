@@ -52,6 +52,7 @@ class ReportProvider with ChangeNotifier {
   }
 
   /// ✅ Создать отчёт
+
   Future<bool> createReport({
     required int appointmentId,
     required String sessionTheme,
@@ -66,8 +67,18 @@ class ReportProvider with ChangeNotifier {
         recommendations: recommendations,
       );
 
-      final report = await _service.createReport(request);
-      _reports.insert(0, report);
+      // ✅ Используем новый метод createOrUpdateReport
+      final report = await _service.createOrUpdateReport(request);
+
+      // Обновляем локальный список
+      final index = _reports.indexWhere(
+        (r) => r.appointmentId == appointmentId,
+      );
+      if (index != -1) {
+        _reports[index] = report;
+      } else {
+        _reports.insert(0, report);
+      }
 
       _errorMessage = null;
       notifyListeners();

@@ -154,4 +154,70 @@ class ReportService {
   Future<List<ReportModel>> getClientHistory(int clientId) async {
     return getClientReports(clientId);
   }
+
+  /// ✅ НОВЫЙ МЕТОД: Получить отчёт по appointmentId
+  Future<ReportModel?> getReportByAppointmentId(int appointmentId) async {
+    try {
+      print('📋 Fetching report for appointment: $appointmentId');
+
+      final response = await _dio.get(
+        '/api/reports/appointment/$appointmentId',
+      );
+
+      if (response.data['success'] == true) {
+        return ReportModel.fromJson(response.data['data']);
+      }
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        // Отчёт не найден - это нормально
+        return null;
+      }
+      print('❌ Get report by appointment error: ${e.response?.data}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to get report');
+    }
+  }
+
+  /// ✅ ИСПРАВЛЕНО: Создать или обновить отчёт
+  Future<ReportModel> createOrUpdateReport(CreateReportRequest request) async {
+    try {
+      print(
+        '📝 Creating/updating report for appointment: ${request.appointmentId}',
+      );
+
+      // 1️⃣ Сначала проверяем, есть ли уже отчёт
+      final existingReport = await getReportByAppointmentId(
+        request.appointmentId,
+      );
+
+      if (existingReport != null) {
+        // 2️⃣ Если отчёт существует - обновляем его
+        print('✏️ Report exists, updating: ${existingReport.id}');
+
+        final updateRequest = UpdateReportRequest(
+          sessionTheme: request.sessionTheme,
+          sessionDescription: request.sessionDescription,
+          recommendations: request.recommendations,
+        );
+
+        return await updateReport(existingReport.id, updateRequest);
+      } else {
+        // 3️⃣ Если отчёта нет - создаём новый
+        print('➕ No report found, creating new');
+
+        final response = await _dio.post(
+          '/api/reports',
+          data: request.toJson(),
+        );
+
+        if (response.data['success'] == true) {
+          return ReportModel.fromJson(response.data['data']);
+        }
+        throw Exception(response.data['message'] ?? 'Failed to create report');
+      }
+    } on DioException catch (e) {
+      print('❌ Create/update report error: ${e.response?.data}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to save report');
+    }
+  }
 }
