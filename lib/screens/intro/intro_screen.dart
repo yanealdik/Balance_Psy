@@ -4,13 +4,12 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/back_button.dart';
 import '../login/login_screen.dart';
-import '../home/U_home_screen/home_screen.dart';
-import '../../services/tutorial_service.dart';
+import '../../services/intro_service.dart';
+import '../../models/intro_model.dart';
 import 'intro_video.dart';
 import 'intro_article.dart';
 import 'intro_meditation.dart';
 
-/// Экран знакомства с приложением (туториал)
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
 
@@ -19,60 +18,68 @@ class IntroScreen extends StatefulWidget {
 }
 
 class _IntroScreenState extends State<IntroScreen> {
-  final TutorialService _tutorialService = TutorialService();
+  final IntroService _introService = IntroService();
 
-  // Отслеживаем завершенные шаги
   Set<int> completedSteps = {};
   bool _isCompleting = false;
+  bool _isLoading = true;
+  List<IntroContent> _introContent = [];
 
-  final List<Map<String, dynamic>> steps = [
-    {
-      'number': 1,
-      'type': 'video',
-      'title': '1. Что такое BalancePsy',
-      'description':
-          'BalancePsy — это твой персональный гид в мире психологического благополучия. Мы создали пространство, где ты можешь найти поддержку, понимание и инструменты для гармоничной жизни.',
-      'icon': Icons.play_circle_outline,
-      'duration': '2 мин',
-      'videoPath': 'assets/video/intro.mp4',
-    },
-    {
-      'number': 2,
-      'type': 'article',
-      'title': '2. Как BalancePsy помогает',
-      'description':
-          'Через научно обоснованные практики медитации, дыхательные упражнения и когнитивные техники мы поможем тебе справляться со стрессом, улучшать сон и находить внутренний покой.',
-      'icon': Icons.article_outlined,
-      'duration': '3 мин чтения',
-    },
-    {
-      'number': 3,
-      'type': 'meditation',
-      'title': '3. Твой первый шаг',
-      'description':
-          'Начни свой путь с простой медитации осознанности. Всего 5 минут в день могут изменить твое отношение к жизни и помочь обрести гармонию.',
-      'icon': Icons.self_improvement,
-      'duration': '5 мин практики',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadIntroContent();
+  }
+
+  Future<void> _loadIntroContent() async {
+    try {
+      final content = await _introService.getIntroContent();
+      setState(() {
+        _introContent = content;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error loading intro content: $e');
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Не удалось загрузить контент интро'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   void _openStep(int index) async {
-    final step = steps[index];
+    if (index >= _introContent.length) return;
+
+    final content = _introContent[index];
     Widget? screen;
 
-    switch (step['type']) {
+    switch (content.contentType) {
       case 'video':
         screen = IntroVideoScreen(
-          title: step['title'],
-          description: step['description'],
-          videoPath: step['videoPath'],
+          title: content.title,
+          description: content.description ?? '',
+          videoPath: content.contentUrl ?? '',
         );
         break;
       case 'article':
-        screen = const IntroArticleScreen();
+        screen = IntroArticleScreen(
+          title: content.title,
+          content: content.contentText ?? '',
+        );
         break;
       case 'meditation':
-        screen = const IntroMeditationScreen();
+        screen = IntroMeditationScreen(
+          title: content.title,
+          description: content.description ?? '',
+          audioUrl: content.audioUrl ?? '',
+          durationSeconds: content.durationSeconds ?? 300,
+        );
         break;
     }
 
@@ -82,7 +89,6 @@ class _IntroScreenState extends State<IntroScreen> {
         MaterialPageRoute(builder: (context) => screen!),
       );
 
-      // Если вернулось true - шаг завершен
       if (result == true) {
         setState(() {
           completedSteps.add(index);
@@ -91,25 +97,24 @@ class _IntroScreenState extends State<IntroScreen> {
     }
   }
 
-  bool get _allStepsCompleted => completedSteps.length == steps.length;
+  bool get _allStepsCompleted => 
+      _introContent.isNotEmpty && 
+      completedSteps.length == _introContent.length;
 
-  /// Завершить туториал (отметить как пройденный)
-  Future<void> _completeTutorial() async {
+  Future<void> _completeIntro() async {
     if (_isCompleting) return;
 
     setState(() => _isCompleting = true);
 
     try {
-      // Сохраняем факт прохождения туториала
-      await _tutorialService.completeTutorial();
+      await _introService.completeIntro();
 
       if (mounted) {
         _navigateToLogin();
       }
     } catch (e) {
-      print('❌ Error completing tutorial: $e');
+      print('❌ Error completing intro: $e');
       if (mounted) {
-        // Даже если ошибка - переводим на логин
         _navigateToLogin();
       }
     } finally {
@@ -119,17 +124,19 @@ class _IntroScreenState extends State<IntroScreen> {
     }
   }
 
-  /// Пропустить туториал
-  void _skipTutorial() {
+  void _skipIntro() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
         title: Text(
-          'Пропустить туториал?',
+          'Пропустить интро?',
           style: AppTextStyles.h3.copyWith(fontSize: 20),
         ),
         content: Text(
-          'Ты можешь пройти знакомство с приложением позже в настройках.',
+          'Ты можешь пройти интро позже в настройках.',
           style: AppTextStyles.body1.copyWith(fontSize: 15),
         ),
         actions: [
@@ -162,7 +169,6 @@ class _IntroScreenState extends State<IntroScreen> {
     );
   }
 
-  /// Переход на экран логина
   void _navigateToLogin() {
     Navigator.pushAndRemoveUntil(
       context,
@@ -173,6 +179,17 @@ class _IntroScreenState extends State<IntroScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
@@ -213,7 +230,7 @@ class _IntroScreenState extends State<IntroScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          '${completedSteps.length}/${steps.length}',
+                          '${completedSteps.length}/${_introContent.length}',
                           style: AppTextStyles.body3.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
@@ -255,31 +272,40 @@ class _IntroScreenState extends State<IntroScreen> {
 
             // Список карточек
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: steps.length,
-                itemBuilder: (context, index) {
-                  final step = steps[index];
-                  final isCompleted = completedSteps.contains(index);
+              child: _introContent.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Контент интро недоступен',
+                        style: AppTextStyles.body2.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      itemCount: _introContent.length,
+                      itemBuilder: (context, index) {
+                        final content = _introContent[index];
+                        final isCompleted = completedSteps.contains(index);
 
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildInfoCard(
-                      number: step['number'],
-                      title: step['title'],
-                      description: step['description'],
-                      icon: step['icon'],
-                      duration: step['duration'],
-                      isCompleted: isCompleted,
-                      onTap: () => _openStep(index),
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildInfoCard(
+                            number: index + 1,
+                            title: content.title,
+                            description: content.description ?? '',
+                            icon: _getIconForType(content.contentType),
+                            duration: _getDurationText(content),
+                            isCompleted: isCompleted,
+                            onTap: () => _openStep(index),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
 
             // Подсказка
-            if (!_allStepsCompleted)
+            if (!_allStepsCompleted && _introContent.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
@@ -317,15 +343,15 @@ class _IntroScreenState extends State<IntroScreen> {
 
             // Кнопки
             Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               child: Column(
                 children: [
                   // Кнопка "Завершить"
                   CustomButton(
                     text: _isCompleting ? 'Завершение...' : 'Завершить',
-                    showArrow: true,
+                    showArrow: !_isCompleting,
                     onPressed: _allStepsCompleted && !_isCompleting
-                        ? _completeTutorial
+                        ? _completeIntro
                         : null,
                     isFullWidth: true,
                   ),
@@ -334,7 +360,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
                   // Кнопка "Пропустить"
                   TextButton(
-                    onPressed: _isCompleting ? null : _skipTutorial,
+                    onPressed: _isCompleting ? null : _skipIntro,
                     child: Text(
                       'Пропустить',
                       style: AppTextStyles.body2.copyWith(
@@ -355,7 +381,27 @@ class _IntroScreenState extends State<IntroScreen> {
     );
   }
 
-  // Карточка с информацией
+  IconData _getIconForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'video':
+        return Icons.play_circle_outline;
+      case 'article':
+        return Icons.article_outlined;
+      case 'meditation':
+        return Icons.self_improvement;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  String _getDurationText(IntroContent content) {
+    if (content.durationSeconds != null) {
+      final minutes = content.durationSeconds! ~/ 60;
+      return '$minutes мин';
+    }
+    return '5 мин';
+  }
+
   Widget _buildInfoCard({
     required int number,
     required String title,

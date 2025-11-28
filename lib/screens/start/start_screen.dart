@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
+import '../intro/intro_screen.dart';
 import '../welcome/welcome_screen.dart';
 import '../login/login_screen.dart';
 
@@ -144,7 +145,7 @@ class StartScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const WelcomeScreen(),
+                            builder: (context) => const IntroScreen(),
                           ),
                         );
                       }, isFullWidth: true,

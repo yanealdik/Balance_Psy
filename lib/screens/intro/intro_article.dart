@@ -4,9 +4,15 @@ import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/back_button.dart';
 
-/// Экран со статьей
 class IntroArticleScreen extends StatefulWidget {
-  const IntroArticleScreen({super.key});
+  final String title;
+  final String content;
+
+  const IntroArticleScreen({
+    super.key,
+    required this.title,
+    required this.content,
+  });
 
   @override
   State<IntroArticleScreen> createState() => _IntroArticleScreenState();
@@ -16,6 +22,106 @@ class _IntroArticleScreenState extends State<IntroArticleScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _hasReadToEnd = false;
 
+  // Статический контент, если не загружен из БД
+  static const String defaultContent = '''
+**Введение**
+
+BalancePsy — это научно обоснованная платформа для поддержки ментального здоровья, созданная командой психологов и разработчиков. Мы объединили современные психотерапевтические методы с удобными цифровыми инструментами.
+
+**Научный подход**
+
+Каждая техника и практика в BalancePsy основана на доказательной психотерапии:
+
+• **Когнитивно-поведенческая терапия (КПТ)** — помогает изменить негативные мысли и поведение
+• **Диалектическая поведенческая терапия (ДБТ)** — учит регулировать эмоции и справляться со стрессом
+• **Mindfulness (осознанность)** — развивает навык присутствия "здесь и сейчас"
+• **Acceptance and Commitment Therapy (ACT)** — помогает принимать сложные эмоции и действовать согласно ценностям
+
+**Медитация и осознанность**
+
+Регулярная практика медитации оказывает измеримое влияние на мозг и психику:
+
+• Снижение уровня кортизола (гормона стресса)
+• Улучшение работы префронтальной коры (принятие решений)
+• Повышение активности в области, отвечающей за эмпатию
+• Укрепление иммунной системы
+
+Исследования показывают, что всего 10-15 минут медитации в день в течение 8 недель приводят к заметным изменениям в структуре мозга.
+
+**Дыхательные практики**
+
+Контролируемое дыхание — это самый быстрый способ влиять на нервную систему:
+
+• **Диафрагмальное дыхание** активирует парасимпатическую нервную систему ("отдых и восстановление")
+• **Дыхание 4-7-8** помогает быстро успокоиться при тревоге
+• **Box breathing** используется спецназом для сохранения спокойствия в стрессе
+
+Всего несколько минут осознанного дыхания могут снизить пульс и кровяное давление.
+
+**Когнитивные техники**
+
+КПТ — это золотой стандарт психотерапии для работы с тревогой и депрессией:
+
+• **Дневник мыслей** — помогает отслеживать и изменять негативное мышление
+• **Поведенческая активация** — возвращает в жизнь приятные активности
+• **Градуированная экспозиция** — постепенно снижает страхи
+• **Сократический диалог** — учит задавать вопросы своим убеждениям
+
+Эффективность КПТ подтверждена тысячами исследований.
+
+**Персонализация**
+
+BalancePsy адаптируется под твои потребности:
+
+• Анализ твоих ответов в диагностических опросниках
+• Отслеживание прогресса и паттернов настроения
+• Рекомендации практик, основанные на твоём состоянии
+• Напоминания в удобное для тебя время
+
+**Безопасность и конфиденциальность**
+
+Твои данные под надёжной защитой:
+
+• Шифрование данных по стандартам банковского уровня
+• Соответствие GDPR и другим стандартам защиты данных
+• Никакая информация не передаётся третьим лицам
+• Ты всегда можешь удалить свой аккаунт и все данные
+
+**Работа с психологом**
+
+BalancePsy — это не замена профессиональной психотерапии, а дополнение:
+
+• Все психологи на платформе имеют подтверждённое образование
+• Ты можешь выбрать специалиста по специализации и подходу
+• Видео-сессии, чат и голосовые сообщения
+• Полная конфиденциальность всех консультаций
+
+**Начни сегодня**
+
+BalancePsy — это твой карманный помощник в путешествии к психологическому благополучию.
+
+Регулярная практика приводит к реальным изменениям. Главное — делать маленькие шаги каждый день.
+
+**Научная база**
+
+Наш подход основан на исследованиях ведущих университетов:
+
+• Harvard Medical School (США)
+• Oxford Mindfulness Centre (Великобритания)
+• Karolinska Institutet (Швеция)
+• Centre for Mindfulness Studies (Канада)
+
+Мы постоянно обновляем методики с учётом последних научных открытий.
+
+**Заключение**
+
+Забота о ментальном здоровье — это не роскошь, а необходимость. В мире высокого темпа жизни и постоянного стресса важно иметь инструменты для поддержки себя.
+
+BalancePsy делает профессиональную психологическую помощь доступной и удобной.
+
+Начни свой путь к балансу прямо сейчас!
+''';
+
   @override
   void initState() {
     super.initState();
@@ -23,7 +129,6 @@ class _IntroArticleScreenState extends State<IntroArticleScreen> {
   }
 
   void _scrollListener() {
-    // Проверяем, прокрутил ли пользователь до конца (или почти до конца)
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 50) {
       if (!_hasReadToEnd) {
@@ -42,6 +147,10 @@ class _IntroArticleScreenState extends State<IntroArticleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final contentToShow = widget.content.isNotEmpty
+        ? widget.content
+        : defaultContent;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -69,7 +178,9 @@ class _IntroArticleScreenState extends State<IntroArticleScreen> {
                   children: [
                     // Заголовок
                     Text(
-                      'Как BalancePsy помогает',
+                      widget.title.isNotEmpty
+                          ? widget.title
+                          : 'Как BalancePsy помогает',
                       style: AppTextStyles.h2.copyWith(fontSize: 26),
                     ),
 
@@ -85,7 +196,7 @@ class _IntroArticleScreenState extends State<IntroArticleScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          '3 минуты чтения',
+                          '5 минут чтения',
                           style: AppTextStyles.body3.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -120,41 +231,8 @@ class _IntroArticleScreenState extends State<IntroArticleScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Текст статьи
-                    _buildParagraph(
-                      'Введение',
-                      'BalancePsy создан на основе научных исследований в области психологии и нейробиологии. Мы объединили древние практики медитации с современными когнитивными техниками, чтобы создать эффективный инструмент для твоего благополучия.',
-                    ),
-
-                    _buildParagraph(
-                      'Медитация и осознанность',
-                      'Регулярная медитация помогает снизить уровень стресса, улучшить концентрацию и эмоциональную устойчивость. Исследования показывают, что всего 10 минут медитации в день могут значительно улучшить качество жизни.',
-                    ),
-
-                    _buildParagraph(
-                      'Дыхательные практики',
-                      'Контролируемое дыхание активирует парасимпатическую нервную систему, что приводит к естественному расслаблению. Наши упражнения основаны на техниках, доказавших свою эффективность в клинических исследованиях.',
-                    ),
-
-                    _buildParagraph(
-                      'Когнитивные техники',
-                      'Мы используем элементы когнитивно-поведенческой терапии (КПТ), которая признана одним из наиболее эффективных методов работы с тревогой, стрессом и негативными мыслями.',
-                    ),
-
-                    _buildParagraph(
-                      'Персонализация',
-                      'BalancePsy адаптируется под твои потребности. Мы отслеживаем твой прогресс и предлагаем практики, которые будут наиболее эффективны именно для тебя.',
-                    ),
-
-                    _buildParagraph(
-                      'Научный подход',
-                      'Все наши методики основаны на проверенных исследованиях. Мы постоянно обновляем контент, учитывая последние открытия в области психологии и нейронауки.',
-                    ),
-
-                    _buildParagraph(
-                      'Заключение',
-                      'BalancePsy - это не просто приложение. Это твой личный помощник на пути к внутренней гармонии и психологическому благополучию. Начни свой путь сегодня!',
-                    ),
+                    // Текст статьи с форматированием
+                    _buildFormattedContent(contentToShow),
 
                     const SizedBox(height: 40),
 
@@ -244,26 +322,82 @@ class _IntroArticleScreenState extends State<IntroArticleScreen> {
     );
   }
 
-  Widget _buildParagraph(String title, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: AppTextStyles.h3.copyWith(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+  Widget _buildFormattedContent(String content) {
+    // Простой парсер Markdown для заголовков и списков
+    final lines = content.split('\n');
+    final widgets = <Widget>[];
+
+    for (var line in lines) {
+      line = line.trim();
+
+      if (line.isEmpty) {
+        widgets.add(const SizedBox(height: 12));
+        continue;
+      }
+
+      // Заголовки (например: **Введение**)
+      if (line.startsWith('**') && line.endsWith('**')) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 8),
+            child: Text(
+              line.replaceAll('**', ''),
+              style: AppTextStyles.h3.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            text,
+        );
+        continue;
+      }
+
+      // Списки (например: • Пункт)
+      if (line.startsWith('• ')) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '• ',
+                  style: AppTextStyles.body2.copyWith(
+                    fontSize: 15,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    line.substring(2),
+                    style: AppTextStyles.body2.copyWith(
+                      fontSize: 15,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        continue;
+      }
+
+      // Обычный текст
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            line,
             style: AppTextStyles.body2.copyWith(fontSize: 15, height: 1.6),
           ),
-        ],
-      ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
     );
   }
 }

@@ -11,13 +11,16 @@ class DiagnosticService {
   ) async {
     try {
       print('📤 Submitting diagnostic...');
+      print('📋 Request data: ${request.toJson()}');
 
       final response = await _dio.post(
         '/api/diagnostic/submit',
         data: request.toJson(),
+        options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
       print('✅ Diagnostic submitted: ${response.statusCode}');
+      print('📥 Response data: ${response.data}');
 
       if (response.data['success'] == true) {
         return DiagnosticResult.fromJson(response.data['data']);
@@ -27,7 +30,16 @@ class DiagnosticService {
         response.data['message'] ?? 'Failed to submit diagnostic',
       );
     } on DioException catch (e) {
-      print('❌ Submit diagnostic error: ${e.response?.data}');
+      print('❌ Submit diagnostic error: ${e.response?.statusCode}');
+      print('❌ Error data: ${e.response?.data}');
+
+      // Специальная обработка 403
+      if (e.response?.statusCode == 403) {
+        throw Exception(
+          'Требуется авторизация. Пожалуйста, войдите в систему заново.',
+        );
+      }
+
       throw Exception(
         e.response?.data['message'] ?? 'Failed to submit diagnostic',
       );

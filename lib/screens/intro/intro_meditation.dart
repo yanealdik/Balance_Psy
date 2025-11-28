@@ -1,13 +1,24 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/back_button.dart';
 
-/// Экран с медитацией
 class IntroMeditationScreen extends StatefulWidget {
-  const IntroMeditationScreen({super.key});
+  final String title;
+  final String description;
+  final String audioUrl;
+  final int durationSeconds;
+
+  const IntroMeditationScreen({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.audioUrl,
+    this.durationSeconds = 300,
+  });
 
   @override
   State<IntroMeditationScreen> createState() => _IntroMeditationScreenState();
@@ -15,12 +26,18 @@ class IntroMeditationScreen extends StatefulWidget {
 
 class _IntroMeditationScreenState extends State<IntroMeditationScreen>
     with SingleTickerProviderStateMixin {
-  bool _isStarted = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  bool _isPlaying = false;
   bool _isCompleted = false;
-  final int _totalSeconds = 3; // 5 минут
+  bool _isLoading = false;
+
   int _remainingSeconds = 300;
   Timer? _timer;
   late AnimationController _pulseController;
+
+  Duration _currentPosition = Duration.zero;
+  Duration _totalDuration = Duration.zero;
 
   final List<Map<String, String>> _steps = [
     {
@@ -58,22 +75,110 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
   @override
   void initState() {
     super.initState();
+    _remainingSeconds = widget.durationSeconds;
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
+
+    _setupAudioPlayer();
+  }
+
+  void _setupAudioPlayer() {
+    // Слушаем позицию воспроизведения
+    _audioPlayer.onPositionChanged.listen((position) {
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          _remainingSeconds = (_totalDuration.inSeconds - position.inSeconds)
+              .clamp(0, widget.durationSeconds);
+        });
+      }
+    });
+
+    // Слушаем длительность
+    _audioPlayer.onDurationChanged.listen((duration) {
+      if (mounted) {
+        setState(() {
+          _totalDuration = duration;
+        });
+      }
+    });
+
+    // Слушаем завершение
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _isCompleted = true;
+        });
+      }
+    });
+
+    // Слушаем состояние
+    _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _pulseController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
-  void _startMeditation() {
+  Future<void> _togglePlayPause() async {
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+    } else {
+      if (_isCompleted) {
+        // Если медитация завершена, начинаем сначала
+        await _audioPlayer.seek(Duration.zero);
+        setState(() {
+          _isCompleted = false;
+        });
+      }
+
+      if (widget.audioUrl.isNotEmpty) {
+        // Воспроизводим с URL
+        setState(() => _isLoading = true);
+
+        try {
+          await _audioPlayer.play(UrlSource(widget.audioUrl));
+        } catch (e) {
+          print('❌ Error playing audio: $e');
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Не удалось воспроизвести медитацию'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+
+          // Запускаем таймер без аудио
+          _startTimerOnly();
+        } finally {
+          setState(() => _isLoading = false);
+        }
+      } else {
+        // Если нет URL, просто запускаем таймер
+        _startTimerOnly();
+      }
+    }
+  }
+
+  void _startTimerOnly() {
     setState(() {
-      _isStarted = true;
+      _isPlaying = true;
     });
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -82,25 +187,21 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
           _remainingSeconds--;
         } else {
           _timer?.cancel();
+          _isPlaying = false;
           _isCompleted = true;
         }
       });
     });
   }
 
-  void _pauseMeditation() {
+  Future<void> _stopMeditation() async {
+    await _audioPlayer.stop();
     _timer?.cancel();
-    setState(() {
-      _isStarted = false;
-    });
-  }
 
-  void _resetMeditation() {
-    _timer?.cancel();
     setState(() {
-      _isStarted = false;
-      _isCompleted = false;
-      _remainingSeconds = _totalSeconds;
+      _isPlaying = false;
+      _remainingSeconds = widget.durationSeconds;
+      _currentPosition = Duration.zero;
     });
   }
 
@@ -111,7 +212,7 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
   }
 
   String _getCurrentStep() {
-    final elapsed = _totalSeconds - _remainingSeconds;
+    final elapsed = widget.durationSeconds - _remainingSeconds;
     for (var i = _steps.length - 1; i >= 0; i--) {
       final stepTime = int.parse(_steps[i]['time']!.split(':')[0]) * 60;
       if (elapsed >= stepTime) {
@@ -134,7 +235,12 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
               child: Row(
                 children: [
                   CustomBackButton(
-                    onPressed: () => Navigator.pop(context, _isCompleted),
+                    onPressed: () async {
+                      await _audioPlayer.stop();
+                      if (mounted) {
+                        Navigator.pop(context, _isCompleted);
+                      }
+                    },
                   ),
                 ],
               ),
@@ -150,7 +256,9 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
 
                     // Заголовок
                     Text(
-                      'Медитация осознанности',
+                      widget.title.isNotEmpty
+                          ? widget.title
+                          : 'Медитация осознанности',
                       style: AppTextStyles.h2.copyWith(fontSize: 26),
                       textAlign: TextAlign.center,
                     ),
@@ -158,7 +266,9 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
                     const SizedBox(height: 8),
 
                     Text(
-                      'Практика для начинающих',
+                      widget.description.isNotEmpty
+                          ? widget.description
+                          : 'Практика для начинающих',
                       style: AppTextStyles.body2.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -204,27 +314,34 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
                               ],
                             ),
                             child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _formatTime(_remainingSeconds),
-                                    style: AppTextStyles.h1.copyWith(
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(
                                       color: Colors.white,
-                                      fontSize: 48,
-                                      fontWeight: FontWeight.w700,
+                                    )
+                                  : Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _formatTime(_remainingSeconds),
+                                          style: AppTextStyles.h1.copyWith(
+                                            color: Colors.white,
+                                            fontSize: 48,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'осталось',
+                                          style: AppTextStyles.body3.copyWith(
+                                            color: Colors.white.withOpacity(
+                                              0.8,
+                                            ),
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'осталось',
-                                    style: AppTextStyles.body3.copyWith(
-                                      color: Colors.white.withOpacity(0.8),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                           ),
                         );
@@ -234,7 +351,7 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
                     const SizedBox(height: 40),
 
                     // Текущий шаг медитации
-                    if (_isStarted && !_isCompleted)
+                    if (_isPlaying && !_isCompleted)
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -316,7 +433,7 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
                       ),
 
                     // Инструкция перед началом
-                    if (!_isStarted && !_isCompleted) ...[
+                    if (!_isPlaying && !_isCompleted) ...[
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -401,41 +518,33 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
               child: Column(
                 children: [
                   if (!_isCompleted) ...[
-                    if (!_isStarted)
+                    CustomButton(
+                      text: _isPlaying ? 'Пауза' : 'Начать медитацию',
+                      icon: _isPlaying ? Icons.pause : Icons.play_arrow,
+                      onPressed: _isLoading ? null : _togglePlayPause,
+                      isFullWidth: true,
+                    ),
+
+                    if (_isPlaying) ...[
+                      const SizedBox(height: 12),
                       CustomButton(
-                        text: 'Начать медитацию',
-                        showArrow: true,
-                        onPressed: _startMeditation,
+                        text: 'Остановить',
+                        icon: Icons.stop,
+                        isPrimary: false,
+                        onPressed: _stopMeditation,
                         isFullWidth: true,
-                      )
-                    else ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: CustomButton(
-                              text: 'Пауза',
-                              isPrimary: false,
-                              onPressed: _pauseMeditation,
-                              isFullWidth: true,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: CustomButton(
-                              text: 'Сброс',
-                              isPrimary: false,
-                              onPressed: _resetMeditation,
-                              isFullWidth: true,
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ] else
                     CustomButton(
                       text: 'Продолжить',
                       showArrow: true,
-                      onPressed: () => Navigator.pop(context, true),
+                      onPressed: () async {
+                        await _audioPlayer.stop();
+                        if (mounted) {
+                          Navigator.pop(context, true);
+                        }
+                      },
                       isFullWidth: true,
                     ),
                 ],

@@ -120,7 +120,7 @@ class DiagnosticResult {
   }
 }
 
-class TutorialContent {
+class IntroContentItem {
   final int id;
   final String contentType; // video, article, meditation
   final String title;
@@ -131,7 +131,7 @@ class TutorialContent {
   final int? durationSeconds;
   final int sortOrder;
 
-  TutorialContent({
+  IntroContentItem({
     required this.id,
     required this.contentType,
     required this.title,
@@ -143,8 +143,8 @@ class TutorialContent {
     required this.sortOrder,
   });
 
-  factory TutorialContent.fromJson(Map<String, dynamic> json) {
-    return TutorialContent(
+  factory IntroContentItem.fromJson(Map<String, dynamic> json) {
+    return IntroContentItem(
       id: json['id'] as int,
       contentType: json['contentType'] as String,
       title: json['title'] as String,

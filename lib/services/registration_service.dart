@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../core/api/api_client.dart';
 import '../core/constants/app_constants.dart';
+import '../core/storage/token_storage.dart';
 import '../models/user_model.dart';
 
 class RegistrationService {
@@ -56,9 +57,7 @@ class RegistrationService {
     }
   }
 
-  /// Регистрация пользователя
-  ///
-  /// Принимает данные из RegistrationProvider и отправляет на backend
+  /// Регистрация пользователя и автоматический логин
   Future<UserModel> register(Map<String, dynamic> data) async {
     try {
       // Форматируем дату рождения
@@ -72,10 +71,10 @@ class RegistrationService {
 
       print('📤 Registration request: ${data.keys}');
 
-      // 🔥 ИЗМЕНЕНО: Определяем endpoint в зависимости от роли
+      // Определяем endpoint в зависимости от роли
       final endpoint = data.containsKey('specialization')
-          ? '/api/auth/register/psychologist' // Психолог
-          : '/api/auth/register/client'; // Клиент
+          ? '/api/auth/register/psychologist'
+          : '/api/auth/register/client';
 
       print('🎯 Using endpoint: $endpoint');
 
@@ -84,7 +83,13 @@ class RegistrationService {
       print('📥 Registration response: ${response.statusCode}');
 
       if (response.data['success'] == true) {
-        return UserModel.fromJson(response.data['data']);
+        final user = UserModel.fromJson(response.data['data']);
+
+        // ✅ КРИТИЧНО: После регистрации сразу логинимся для получения токена
+        print('🔑 Auto-login after registration...');
+        await _autoLogin(data['email'], data['password']);
+
+        return user;
       } else {
         throw Exception(response.data['message'] ?? 'Registration failed');
       }
@@ -108,6 +113,31 @@ class RegistrationService {
     } catch (e) {
       print('❌ Unexpected error: $e');
       throw Exception('Registration failed: ${e.toString()}');
+    }
+  }
+
+  /// Автоматический логин после регистрации
+  Future<void> _autoLogin(String email, String password) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.login,
+        data: {'email': email, 'password': password},
+      );
+
+      if (response.data['success'] == true) {
+        final token = response.data['data']['token'];
+
+        // Сохраняем токен
+        await TokenStorage.saveToken(token);
+        await TokenStorage.saveEmail(email);
+
+        print('✅ Token saved after registration');
+      } else {
+        print('⚠️ Auto-login failed, but registration successful');
+      }
+    } catch (e) {
+      print('⚠️ Auto-login error: $e');
+      // Не прерываем регистрацию, если логин не удался
     }
   }
 }
