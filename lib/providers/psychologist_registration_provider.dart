@@ -21,6 +21,9 @@ class PsychologistRegistrationProvider with ChangeNotifier {
   double? _sessionPrice;
   String _applicationStatus = 'draft';
 
+  bool _agreementAccepted = false;
+  String _agreementVersion = '1.0';
+
   // Getters
   String? get fullName => _fullName;
   DateTime? get dateOfBirth => _dateOfBirth;
@@ -40,6 +43,9 @@ class PsychologistRegistrationProvider with ChangeNotifier {
   String? get certificateUrl => _certificateUrl;
   double? get sessionPrice => _sessionPrice;
   String get applicationStatus => _applicationStatus;
+
+  bool get agreementAccepted => _agreementAccepted;
+  String get agreementVersion => _agreementVersion;
 
   // Setters
   void setPersonalInfo({
@@ -119,6 +125,11 @@ class PsychologistRegistrationProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setAgreementAccepted(bool accepted) {
+    _agreementAccepted = accepted;
+    notifyListeners();
+  }
+
   bool get isStep1Complete {
     return _fullName != null &&
         _fullName!.isNotEmpty &&
@@ -192,10 +203,34 @@ class PsychologistRegistrationProvider with ChangeNotifier {
       'bio': _bio,
       'approaches': _approaches.toSet(), // ✅ Преобразуем List -> Set
       'sessionPrice': _sessionPrice, // ✅ Будет double
+      'agreementAccepted': _agreementAccepted, // ✅ ДОБАВЛЕНО
+      'agreementVersion': _agreementVersion,
     };
   }
 
   void clear() {
+    _fullName = null;
+    _dateOfBirth = null;
+    _age = null;
+    _gender = null;
+    _phone = null;
+    _email = null;
+    _password = null;
+    _verificationCode = null;
+    _emailVerified = false;
+    _specialization = null;
+    _experienceYears = null;
+    _education = null;
+    _bio = null;
+    _approaches = [];
+    _certificates = [];
+    _certificateUrl = null;
+    _sessionPrice = null;
+    _applicationStatus = 'draft';
+    notifyListeners();
+  }
+
+  void reset() {
     _fullName = null;
     _dateOfBirth = null;
     _age = null;

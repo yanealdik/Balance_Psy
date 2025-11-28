@@ -1,14 +1,21 @@
+// ============================================
+// lib/screens/intro/intro_screen_updated.dart
+// ОБНОВЛЁННЫЙ IntroScreen с туториалом и кнопкой "Пропустить"
+// ============================================
+
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/back_button.dart';
+import '../login/login_screen.dart';
 import '../home/U_home_screen/home_screen.dart';
+import '../../services/tutorial_service.dart';
 import 'intro_video.dart';
 import 'intro_article.dart';
 import 'intro_meditation.dart';
 
-/// Экран знакомства с приложением
+/// Экран знакомства с приложением (туториал)
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
 
@@ -17,8 +24,11 @@ class IntroScreen extends StatefulWidget {
 }
 
 class _IntroScreenState extends State<IntroScreen> {
+  final TutorialService _tutorialService = TutorialService();
+
   // Отслеживаем завершенные шаги
   Set<int> completedSteps = {};
+  bool _isCompleting = false;
 
   final List<Map<String, dynamic>> steps = [
     {
@@ -29,7 +39,7 @@ class _IntroScreenState extends State<IntroScreen> {
           'BalancePsy — это твой персональный гид в мире психологического благополучия. Мы создали пространство, где ты можешь найти поддержку, понимание и инструменты для гармоничной жизни.',
       'icon': Icons.play_circle_outline,
       'duration': '2 мин',
-      'videoPath': 'assets/video/intro.mp4', // Путь к вашему видео файлу
+      'videoPath': 'assets/video/intro.mp4',
     },
     {
       'number': 2,
@@ -60,7 +70,7 @@ class _IntroScreenState extends State<IntroScreen> {
         screen = IntroVideoScreen(
           title: step['title'],
           description: step['description'],
-          videoPath: step['videoPath'], // Используем videoPath вместо videoUrl
+          videoPath: step['videoPath'],
         );
         break;
       case 'article':
@@ -88,6 +98,84 @@ class _IntroScreenState extends State<IntroScreen> {
 
   bool get _allStepsCompleted => completedSteps.length == steps.length;
 
+  /// Завершить туториал (отметить как пройденный)
+  Future<void> _completeTutorial() async {
+    if (_isCompleting) return;
+
+    setState(() => _isCompleting = true);
+
+    try {
+      // Сохраняем факт прохождения туториала
+      await _tutorialService.completeTutorial();
+
+      if (mounted) {
+        _navigateToLogin();
+      }
+    } catch (e) {
+      print('❌ Error completing tutorial: $e');
+      if (mounted) {
+        // Даже если ошибка - переводим на логин
+        _navigateToLogin();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCompleting = false);
+      }
+    }
+  }
+
+  /// Пропустить туториал
+  void _skipTutorial() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Пропустить туториал?',
+          style: AppTextStyles.h3.copyWith(fontSize: 20),
+        ),
+        content: Text(
+          'Ты можешь пройти знакомство с приложением позже в настройках.',
+          style: AppTextStyles.body1.copyWith(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Остаться',
+              style: AppTextStyles.body1.copyWith(
+                fontSize: 15,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _navigateToLogin();
+            },
+            child: Text(
+              'Пропустить',
+              style: AppTextStyles.body1.copyWith(
+                fontSize: 15,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Переход на экран логина
+  void _navigateToLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,13 +183,19 @@ class _IntroScreenState extends State<IntroScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Верхняя часть с кнопкой назад
+            // Шапка
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   const CustomBackButton(),
-                  const Spacer(),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Знакомство с BalancePsy',
+                      style: AppTextStyles.h3.copyWith(fontSize: 18),
+                    ),
+                  ),
                   // Прогресс
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -212,7 +306,7 @@ class _IntroScreenState extends State<IntroScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Пройди все шаги, чтобы продолжить',
+                          'Пройди все шаги или нажми "Пропустить" ниже',
                           style: AppTextStyles.body3.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
@@ -226,24 +320,38 @@ class _IntroScreenState extends State<IntroScreen> {
 
             const SizedBox(height: 16),
 
-            // Кнопка "Завершить"
+            // Кнопки
             Padding(
               padding: const EdgeInsets.all(24),
-              child: CustomButton(
-                text: 'Завершить',
-                showArrow: true,
-                onPressed: _allStepsCompleted
-                    ? () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HomeScreen(),
-                          ),
-                          (route) => false,
-                        );
-                      }
-                    : null,
-                isFullWidth: true,
+              child: Column(
+                children: [
+                  // Кнопка "Завершить"
+                  CustomButton(
+                    text: _isCompleting ? 'Завершение...' : 'Завершить',
+                    showArrow: true,
+                    onPressed: _allStepsCompleted && !_isCompleting
+                        ? _completeTutorial
+                        : null,
+                    isFullWidth: true,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Кнопка "Пропустить"
+                  TextButton(
+                    onPressed: _isCompleting ? null : _skipTutorial,
+                    child: Text(
+                      'Пропустить',
+                      style: AppTextStyles.body2.copyWith(
+                        color: _isCompleting
+                            ? AppColors.textTertiary
+                            : AppColors.textSecondary,
+                        decoration: TextDecoration.underline,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

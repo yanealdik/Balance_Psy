@@ -1,135 +1,124 @@
 import 'package:flutter/material.dart';
 
 class RegistrationProvider with ChangeNotifier {
-  // Шаг 1: Цель
-  String? _goal;
-
-  // Шаг 2: Имя и интересы
+  // Существующие поля
+  String _email = '';
+  String _password = '';
+  String _firstName = '';
+  String _lastName = '';
+  DateTime? _birthDate;
+  String? _gender;
+  String? _parentEmail;
   String? _fullName;
   List<String> _interests = [];
 
-  // Шаг 3: Пол
-  String? _gender;
+  // ✅ НОВЫЕ ПОЛЯ для соглашения
+  bool _agreementAccepted = false;
+  String _agreementVersion = '1.0';
 
-  // Шаг 4: Дата рождения
-  DateTime? _dateOfBirth;
-  int? _age;
-
-  // Шаг 5: Email и пароль
-  String? _email;
-  String? _password;
-  bool _emailVerified = false;
-  bool _isUnder18 = false;
-
-  // Родительский email (если < 18)
-  String? _parentEmail;
-  bool _parentEmailVerified = false;
-
-  // Getters
-  String? get goal => _goal;
+  // Геттеры
+  String get email => _email;
+  String get password => _password;
+  String get firstName => _firstName;
+  String get lastName => _lastName;
+  DateTime? get birthDate => _birthDate;
+  String? get gender => _gender;
+  String? get parentEmail => _parentEmail;
   String? get fullName => _fullName;
   List<String> get interests => _interests;
-  String? get gender => _gender;
-  DateTime? get dateOfBirth => _dateOfBirth;
-  int? get age => _age;
-  String? get email => _email;
-  String? get password => _password;
-  bool get emailVerified => _emailVerified;
-  bool get isUnder18 => _isUnder18;
-  String? get parentEmail => _parentEmail;
-  bool get parentEmailVerified => _parentEmailVerified;
 
-  // Setters
-  void setGoal(String goal) {
-    _goal = goal;
+  // ✅ НОВЫЕ геттеры
+  bool get agreementAccepted => _agreementAccepted;
+  String get agreementVersion => _agreementVersion;
+
+  // Сеттеры
+  void setEmail(String value) {
+    _email = value;
     notifyListeners();
   }
 
-  void setPersonalInfo(String name, List<String> interests) {
-    _fullName = name;
+  void setPassword(String value) {
+    _password = value;
+    notifyListeners();
+  }
+
+  void setFirstName(String value) {
+    _firstName = value;
+    notifyListeners();
+  }
+
+  void setLastName(String value) {
+    _lastName = value;
+    notifyListeners();
+  }
+
+  void setBirthDate(DateTime value) {
+    _birthDate = value;
+    notifyListeners();
+  }
+
+  void setGender(String? value) {
+    _gender = value;
+    notifyListeners();
+  }
+
+  void setParentEmail(String? value) {
+    _parentEmail = value;
+    notifyListeners();
+  }
+
+  void setPersonalInfo(String fullName, List<String> interests) {
+    _fullName = fullName;
     _interests = interests;
     notifyListeners();
   }
 
-  void setGender(String? gender) {
-    _gender = gender;
+  // ✅ НОВЫЙ сеттер
+  void setAgreementAccepted(bool accepted) {
+    _agreementAccepted = accepted;
     notifyListeners();
   }
 
-  void setDateOfBirth(DateTime date, int age) {
-    _dateOfBirth = date;
-    _age = age;
-    _isUnder18 = age < 18;
-    notifyListeners();
-  }
-
-  void setEmail(String email) {
-    _email = email;
-    notifyListeners();
-  }
-
-  void setPassword(String password) {
-    _password = password;
-    notifyListeners();
-  }
-
-  void setEmailVerified(bool verified) {
-    _emailVerified = verified;
-    notifyListeners();
-  }
-
-  void setParentEmail(String email) {
-    _parentEmail = email;
-    notifyListeners();
-  }
-
-  void setParentEmailVerified(bool verified) {
-    _parentEmailVerified = verified;
-    notifyListeners();
-  }
-
-  // Проверка готовности к регистрации
-  bool get canRegister {
-    if (_fullName == null || _fullName!.isEmpty) return false;
-    if (_interests.isEmpty) return false;
-    if (_dateOfBirth == null) return false;
-    if (_email == null || !_emailVerified) return false;
-    if (_password == null || _password!.length < 6) return false;
-    if (_isUnder18 && (!_parentEmailVerified || _parentEmail == null)) {
-      return false;
-    }
-    return true;
-  }
-
-  // Получить данные для регистрации
+  // Получение всех данных для отправки
   Map<String, dynamic> getRegistrationData() {
     return {
       'email': _email,
       'password': _password,
-      'passwordRepeat': _password,
-      'fullName': _fullName,
-      'dateOfBirth': _dateOfBirth?.toIso8601String().split('T')[0],
+      'firstName': _firstName,
+      'lastName': _lastName,
+      'birthDate': _birthDate?.toIso8601String(),
       'gender': _gender,
-      'interests': _interests,
-      'registrationGoal': _goal,
       'parentEmail': _parentEmail,
+      'agreementAccepted': _agreementAccepted, // ✅ ДОБАВЛЕНО
+      'agreementVersion': _agreementVersion, // ✅ ДОБАВЛЕНО
+      'fullName': _fullName,
+      'interests': _interests,
     };
   }
 
-  // Очистить данные
-  void clear() {
-    _goal = null;
+  // Сброс всех данных
+  void reset() {
+    _email = '';
+    _password = '';
+    _firstName = '';
+    _lastName = '';
+    _birthDate = null;
+    _gender = null;
+    _parentEmail = null;
     _fullName = null;
     _interests = [];
-    _gender = null;
-    _dateOfBirth = null;
-    _age = null;
-    _email = null;
-    _password = null;
-    _emailVerified = false;
-    _isUnder18 = false;
-    _parentEmail = null;
-    _parentEmailVerified = false;
+    _agreementAccepted = false; // ✅ ДОБАВЛЕНО
+    _agreementVersion = '1.0'; // ✅ ДОБАВЛЕНО
     notifyListeners();
+  }
+
+  // Валидация
+  bool isValid() {
+    return _email.isNotEmpty &&
+        _password.isNotEmpty &&
+        _firstName.isNotEmpty &&
+        _lastName.isNotEmpty &&
+        _birthDate != null &&
+        _agreementAccepted; // ✅ ДОБАВЛЕНО
   }
 }

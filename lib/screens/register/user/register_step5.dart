@@ -1,4 +1,4 @@
-import 'package:balance_psy/screens/register/DiagnosticAfterReg/DiagnosticScreen.dart';
+import 'package:balance_psy/screens/register/DiagnosticAfterReg/comprehensive_diagnostic_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
@@ -11,10 +11,6 @@ import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
 import '../../../widgets/step_indicator.dart';
 import '../../../widgets/back_button.dart';
-import '../../success/success_screen.dart';
-import '../../../services/registration_service.dart';
-import '../../../core/utils/error_handler.dart';
-
 /// Экран онбординга Шаг 5 - Email и Пароль
 class OnboardingStep5Screen extends StatefulWidget {
   const OnboardingStep5Screen({super.key});
@@ -557,7 +553,7 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const InitialDiagnosticScreen(),
+          builder: (context) => const ComprehensiveDiagnosticScreen(),
         ),
       );
     } catch (e) {
