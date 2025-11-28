@@ -84,6 +84,10 @@ class _ComprehensiveDiagnosticScreenState
             _bddTimeThinking != null;
       case 4:
         return _perfectionismAnswers.every((answer) => answer != null);
+      case 5:
+        // Итоговая страница: сюда попадаем только после заполнения всего,
+        // поэтому кнопка может быть всегда активна
+        return true;
       default:
         return false;
     }

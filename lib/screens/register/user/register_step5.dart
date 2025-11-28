@@ -11,6 +11,7 @@ import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
 import '../../../widgets/step_indicator.dart';
 import '../../../widgets/back_button.dart';
+
 /// Экран онбординга Шаг 5 - Email и Пароль
 class OnboardingStep5Screen extends StatefulWidget {
   const OnboardingStep5Screen({super.key});
@@ -514,6 +515,10 @@ class _OnboardingStep5ScreenState extends State<OnboardingStep5Screen> {
       print('🚀 Starting registration...');
       print('📧 Email: ${registrationData['email']}');
       print('👤 Name: ${registrationData['fullName']}');
+      print('🎯 Goal: ${registrationData['registrationGoal']}'); // ✅ Проверка
+      print(
+        '✅ Agreement: ${registrationData['agreementAccepted']}',
+      ); // ✅ Проверка
 
       // Отправляем запрос на backend
       final registrationService = RegistrationService();

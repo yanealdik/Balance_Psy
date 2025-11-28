@@ -7,12 +7,15 @@ class RegistrationProvider with ChangeNotifier {
   String _firstName = '';
   String _lastName = '';
   DateTime? _birthDate;
+  int? _age; // ✅ ДОБАВЛЕНО
   String? _gender;
   String? _parentEmail;
   String? _fullName;
+  String? _goal; // ✅ ДОБАВЛЕНО
   List<String> _interests = [];
+  bool _parentEmailVerified = false; // ✅ ДОБАВЛЕНО
 
-  // ✅ НОВЫЕ ПОЛЯ для соглашения
+  // Новые поля для соглашения
   bool _agreementAccepted = false;
   String _agreementVersion = '1.0';
 
@@ -22,12 +25,15 @@ class RegistrationProvider with ChangeNotifier {
   String get firstName => _firstName;
   String get lastName => _lastName;
   DateTime? get birthDate => _birthDate;
+  int? get age => _age; // ✅ ДОБАВЛЕНО
   String? get gender => _gender;
   String? get parentEmail => _parentEmail;
+  bool get parentEmailVerified => _parentEmailVerified; // ✅ ДОБАВЛЕНО
   String? get fullName => _fullName;
+  String? get goal => _goal; // ✅ ДОБАВЛЕНО
   List<String> get interests => _interests;
 
-  // ✅ НОВЫЕ геттеры
+  // Новые геттеры
   bool get agreementAccepted => _agreementAccepted;
   String get agreementVersion => _agreementVersion;
 
@@ -52,8 +58,10 @@ class RegistrationProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void setBirthDate(DateTime value) {
+  // ✅ ИСПРАВЛЕНО: добавлен метод с двумя параметрами
+  void setDateOfBirth(DateTime value, int calculatedAge) {
     _birthDate = value;
+    _age = calculatedAge;
     notifyListeners();
   }
 
@@ -67,13 +75,25 @@ class RegistrationProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // ✅ ДОБАВЛЕНО
+  void setParentEmailVerified(bool verified) {
+    _parentEmailVerified = verified;
+    notifyListeners();
+  }
+
+  // ✅ ДОБАВЛЕНО: метод для сохранения цели
+  void setGoal(String value) {
+    _goal = value;
+    notifyListeners();
+  }
+
   void setPersonalInfo(String fullName, List<String> interests) {
     _fullName = fullName;
     _interests = interests;
     notifyListeners();
   }
 
-  // ✅ НОВЫЙ сеттер
+  // Новый сеттер
   void setAgreementAccepted(bool accepted) {
     _agreementAccepted = accepted;
     notifyListeners();
@@ -81,18 +101,29 @@ class RegistrationProvider with ChangeNotifier {
 
   // Получение всех данных для отправки
   Map<String, dynamic> getRegistrationData() {
+    // Форматируем дату в yyyy-MM-dd
+    String? formattedDate;
+    if (_birthDate != null) {
+      formattedDate =
+          '${_birthDate!.year.toString().padLeft(4, '0')}-'
+          '${_birthDate!.month.toString().padLeft(2, '0')}-'
+          '${_birthDate!.day.toString().padLeft(2, '0')}';
+    }
+
     return {
       'email': _email,
       'password': _password,
-      'firstName': _firstName,
-      'lastName': _lastName,
-      'birthDate': _birthDate?.toIso8601String(),
+      'passwordRepeat': _password, // ✅ ДОБАВЛЕНО для backend
+      'fullName': _fullName ?? '$_firstName $_lastName',
+      'dateOfBirth': formattedDate,
       'gender': _gender,
+      'phone': '', // пустая строка вместо null
       'parentEmail': _parentEmail,
-      'agreementAccepted': _agreementAccepted, // ✅ ДОБАВЛЕНО
-      'agreementVersion': _agreementVersion, // ✅ ДОБАВЛЕНО
-      'fullName': _fullName,
+      'parentEmailVerified': _parentEmailVerified, // ✅ ДОБАВЛЕНО
+      'agreementAccepted': _agreementAccepted,
+      'agreementVersion': _agreementVersion,
       'interests': _interests,
+      'registrationGoal': _goal, // ✅ ИСПРАВЛЕНО
     };
   }
 
@@ -103,12 +134,15 @@ class RegistrationProvider with ChangeNotifier {
     _firstName = '';
     _lastName = '';
     _birthDate = null;
+    _age = null;
     _gender = null;
     _parentEmail = null;
+    _parentEmailVerified = false;
     _fullName = null;
+    _goal = null;
     _interests = [];
-    _agreementAccepted = false; // ✅ ДОБАВЛЕНО
-    _agreementVersion = '1.0'; // ✅ ДОБАВЛЕНО
+    _agreementAccepted = false;
+    _agreementVersion = '1.0';
     notifyListeners();
   }
 
@@ -116,9 +150,8 @@ class RegistrationProvider with ChangeNotifier {
   bool isValid() {
     return _email.isNotEmpty &&
         _password.isNotEmpty &&
-        _firstName.isNotEmpty &&
-        _lastName.isNotEmpty &&
+        (_fullName != null && _fullName!.isNotEmpty) &&
         _birthDate != null &&
-        _agreementAccepted; // ✅ ДОБАВЛЕНО
+        _agreementAccepted;
   }
 }

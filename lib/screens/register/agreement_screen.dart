@@ -1,8 +1,3 @@
-// ============================================
-// lib/screens/register/agreement_screen.dart
-// ЭКРАН СОГЛАШЕНИЯ ПОЛЬЗОВАТЕЛЯ
-// ============================================
-
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import '../../theme/app_colors.dart';

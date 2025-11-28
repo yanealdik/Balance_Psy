@@ -33,8 +33,8 @@ class _OnboardingStep4ScreenState extends State<OnboardingStep4Screen> {
         context,
         listen: false,
       );
-      if (regProvider.dateOfBirth != null) {
-        final date = regProvider.dateOfBirth!;
+      if (regProvider.birthDate != null) {
+        final date = regProvider.birthDate!;
         _dayController.text = date.day.toString().padLeft(2, '0');
         _monthController.text = date.month.toString().padLeft(2, '0');
         _yearController.text = date.year.toString();

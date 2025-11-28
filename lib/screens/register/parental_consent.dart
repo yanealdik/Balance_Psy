@@ -155,85 +155,88 @@ class _ParentalConsentScreenState extends State<ParentalConsentScreen> {
   }
 
   Future<void> _verifyCode() async {
-  setState(() {
-    _errorMessage = null;
-  });
-
-  if (_codeController.text.trim().isEmpty) {
     setState(() {
-      _errorMessage = 'Введите код подтверждения';
+      _errorMessage = null;
     });
-    return;
-  }
 
-  if (_codeController.text.trim().length != 6) {
-    setState(() {
-      _errorMessage = 'Код должен содержать 6 цифр';
-    });
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  try {
-    final verified = await _registrationService.verifyCode(
-      _emailController.text.trim(),
-      _codeController.text.trim(),
-      isParentEmail: true, // ← ВАЖНО: true для родителя
-    );
-
-    if (verified) {
-      final regProvider = Provider.of<RegistrationProvider>(
-        context,
-        listen: false,
-      );
-      regProvider.setParentEmailVerified(true);
-
+    if (_codeController.text.trim().isEmpty) {
       setState(() {
-        _isVerified = true;
+        _errorMessage = 'Введите код подтверждения';
       });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.verified, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Согласие родителя подтверждено!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-
-      Future.delayed(const Duration(milliseconds: 1500), () {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const OnboardingStep5Screen(),
-            ),
-          );
-        }
-      });
-    } else {
-      setState(() {
-        _errorMessage = 'Неверный код подтверждения';
-      });
+      return;
     }
-  } catch (e) {
-    setState(() {
-      _errorMessage = ErrorHandler.getErrorMessage(e);
-    });
-  } finally {
-    setState(() => _isLoading = false);
-  }
+
+    if (_codeController.text.trim().length != 6) {
+      setState(() {
+        _errorMessage = 'Код должен содержать 6 цифр';
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final verified = await _registrationService.verifyCode(
+        _emailController.text.trim(),
+        _codeController.text.trim(),
+        isParentEmail: true,
+      );
+
+      if (verified) {
+        final regProvider = Provider.of<RegistrationProvider>(
+          context,
+          listen: false,
+        );
+
+        // ✅ ИСПРАВЛЕНО: устанавливаем оба поля
+        regProvider.setParentEmail(_emailController.text.trim());
+        regProvider.setParentEmailVerified(true);
+
+        setState(() {
+          _isVerified = true;
+        });
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.verified, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Согласие родителя подтверждено!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const OnboardingStep5Screen(),
+              ),
+            );
+          }
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Неверный код подтверждения';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = ErrorHandler.getErrorMessage(e);
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override

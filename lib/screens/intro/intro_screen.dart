@@ -1,8 +1,3 @@
-// ============================================
-// lib/screens/intro/intro_screen_updated.dart
-// ОБНОВЛЁННЫЙ IntroScreen с туториалом и кнопкой "Пропустить"
-// ============================================
-
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';

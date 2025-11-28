@@ -84,7 +84,7 @@ class _OnboardingStep1ScreenState extends State<OnboardingStep1Screen> {
                 showArrow: true,
                 onPressed: selectedGoal != null
                     ? () {
-                        // Сохраняем цель в provider
+                        // ✅ ИСПРАВЛЕНО: используем правильный метод
                         final regProvider = Provider.of<RegistrationProvider>(
                           context,
                           listen: false,
