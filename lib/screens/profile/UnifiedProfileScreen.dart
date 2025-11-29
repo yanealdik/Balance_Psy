@@ -5,7 +5,12 @@ import '../../../theme/app_text_styles.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/ProgressService.dart';
+import '../../../services/StatisticsService.dart';
+import '../../../models/client_progress_model.dart';
+import '../../../models/psychologist_statistics_model.dart';
 import '../login/login_screen.dart';
+import 'detailed_statistics_screen.dart';
 import 'edit/edit_screen.dart';
 import 'setting/setting_screen.dart';
 import 'FAQ/faq_screen.dart';
@@ -22,13 +27,19 @@ class UnifiedProfileScreen extends StatefulWidget {
 
 class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
   final AuthService _authService = AuthService();
+  final ProgressService _progressService = ProgressService();
+  final StatisticsService _statisticsService = StatisticsService();
+
   bool _isLoading = false;
   bool _notificationsEnabled = true;
+
+  // Данные прогресса и статистики
+  ClientProgress? _clientProgress;
+  PsychologistStatistics? _psychologistStats;
 
   @override
   void initState() {
     super.initState();
-    // ✅ ИСПРАВЛЕНО: Загружаем профиль после первого build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfile();
     });
@@ -41,6 +52,13 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       await authProvider.loadUser();
+
+      // Загружаем данные в зависимости от роли
+      if (authProvider.user?.role == 'CLIENT') {
+        await _loadClientProgress();
+      } else if (authProvider.user?.role == 'PSYCHOLOGIST') {
+        await _loadPsychologistStatistics();
+      }
     } catch (e) {
       if (mounted) {
         _showError('Ошибка загрузки профиля: $e');
@@ -48,6 +66,36 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadClientProgress() async {
+    try {
+      final progress = await _progressService.getMyProgress();
+      if (mounted) {
+        setState(() => _clientProgress = progress);
+      }
+    } catch (e) {
+      print('⚠️ Failed to load client progress: $e');
+      // Используем пустой прогресс при ошибке
+      if (mounted) {
+        setState(() => _clientProgress = ClientProgress.empty());
+      }
+    }
+  }
+
+  Future<void> _loadPsychologistStatistics() async {
+    try {
+      final stats = await _statisticsService.getMyStatistics();
+      if (mounted) {
+        setState(() => _psychologistStats = stats);
+      }
+    } catch (e) {
+      print('⚠️ Failed to load psychologist statistics: $e');
+      // Используем пустую статистику при ошибке
+      if (mounted) {
+        setState(() => _psychologistStats = PsychologistStatistics.empty());
       }
     }
   }
@@ -76,44 +124,29 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // Header
                   _buildHeader(),
-
-                  // Avatar
                   _buildAvatar(user.avatarUrl),
-
                   const SizedBox(height: 16),
-
-                  // Name and Role
                   _buildNameAndRole(user.fullName, isPsychologist),
-
                   const SizedBox(height: 24),
-
-                  // Edit Profile Button
                   _buildEditButton(),
-
                   const SizedBox(height: 24),
 
-                  // Psychologist Stats (if applicable)
+                  // Psychologist Stats
                   if (isPsychologist) ...[
                     _buildPsychologistStats(),
                     const SizedBox(height: 24),
                   ],
 
-                  // Client Progress (if applicable)
+                  // Client Progress
                   if (!isPsychologist) ...[
                     _buildClientProgress(),
                     const SizedBox(height: 24),
                   ],
 
-                  // Actions Card
                   _buildActionsCard(),
-
                   const SizedBox(height: 24),
-
-                  // Logout Button
                   _buildLogoutButton(),
-
                   const SizedBox(height: 40),
                 ],
               ),
@@ -227,7 +260,12 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
   }
 
   Widget _buildPsychologistStats() {
-    // TODO: Fetch real stats from provider
+    if (_psychologistStats == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final stats = _psychologistStats!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -257,7 +295,7 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
               children: [
                 StatItemWidget(
                   title: 'Пациенты',
-                  value: '0',
+                  value: '${stats.clients.totalClients}',
                   icon: Icons.people_outline,
                 ),
                 Container(
@@ -267,7 +305,7 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
                 ),
                 StatItemWidget(
                   title: 'Сессии',
-                  value: '0',
+                  value: '${stats.sessions.totalCompletedSessions}',
                   icon: Icons.event_note,
                 ),
                 Container(
@@ -277,10 +315,24 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
                 ),
                 StatItemWidget(
                   title: 'Рейтинг',
-                  value: '0.0',
+                  value: stats.rating.averageRating.toStringAsFixed(1),
                   icon: Icons.star_outline,
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DetailedStatisticsScreen(
+                      statistics: _psychologistStats!,
+                    ),
+                  ),
+                );
+              },
+              child: Text('Подробнее →'),
             ),
           ],
         ),
@@ -289,6 +341,12 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
   }
 
   Widget _buildClientProgress() {
+    if (_clientProgress == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final progress = _clientProgress!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -334,21 +392,47 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
               ],
             ),
             const SizedBox(height: 16),
+
+            // Общий прогресс
+            _buildProgressBar(progress.overallProgress),
+            const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
                   child: _buildStatItem(
-                    icon: Icons.emoji_emotions_outlined,
-                    label: 'Настроение',
-                    value: '7 дней',
+                    icon: Icons.check_circle_outline,
+                    label: 'Сессии',
+                    value:
+                        '${progress.completedSessions}/${progress.totalSessions}',
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatItem(
-                    icon: Icons.fitness_center_outlined,
-                    label: 'Упражнения',
-                    value: '12',
+                    icon: Icons.local_fire_department_outlined,
+                    label: 'Активность',
+                    value: '${progress.activeDaysStreak} дн.',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatItem(
+                    icon: Icons.flag_outlined,
+                    label: 'Цели',
+                    value: '${progress.completedGoals}/${progress.totalGoals}',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatItem(
+                    icon: Icons.star_outline,
+                    label: 'Оценка',
+                    value: progress.averageSessionRating.toStringAsFixed(1),
                   ),
                 ),
               ],
@@ -356,6 +440,43 @@ class _UnifiedProfileScreenState extends State<UnifiedProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProgressBar(int progress) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Общий прогресс',
+              style: AppTextStyles.body2.copyWith(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              '$progress%',
+              style: AppTextStyles.h3.copyWith(
+                fontSize: 16,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: progress / 100,
+            minHeight: 8,
+            backgroundColor: AppColors.inputBorder.withOpacity(0.2),
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+        ),
+      ],
     );
   }
 

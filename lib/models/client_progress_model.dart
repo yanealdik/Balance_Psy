@@ -44,4 +44,19 @@ class ClientProgress {
           : null,
     );
   }
+
+  // Пустой прогресс для состояния загрузки
+  factory ClientProgress.empty() {
+    return ClientProgress(
+      overallProgress: 0,
+      completedSessions: 0,
+      totalSessions: 0,
+      upcomingSessionsCount: 0,
+      attendanceRate: 0.0,
+      activeDaysStreak: 0,
+      completedGoals: 0,
+      totalGoals: 0,
+      averageSessionRating: 0.0,
+    );
+  }
 }
