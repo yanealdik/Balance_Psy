@@ -35,7 +35,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Загрузить пользователя (при старте приложения)
+  // ✅ ИСПРАВЛЕНО: Загрузить пользователя через новый метод
   Future<void> loadUser() async {
     _isLoading = true;
     notifyListeners();
@@ -46,6 +46,7 @@ class AuthProvider with ChangeNotifier {
         _user = await _authService.getCurrentUser();
       }
     } catch (e) {
+      print('❌ Error loading user: $e');
       _user = null;
     } finally {
       _isLoading = false;

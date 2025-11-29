@@ -17,8 +17,8 @@ import '../../U_articles/article_screen.dart';
 import '../../MoodSurvey/MoodSurveyScreen.dart';
 import '../../chats/Message/Message_screen.dart';
 import '../../chats/U_chats/chats_screen.dart';
-import '../../profile/U_profile/profile_screen.dart';
 import '../../../widgets/custom_navbar.dart';
+import '../../profile/UnifiedProfileScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
     PsychologistsScreen(),
     ArticlesScreen(),
     ChatsScreen(),
-    ProfileScreen(),
+    UnifiedProfileScreen(),
   ];
 
   void navigateToTab(int index) => setState(() => _index = index);

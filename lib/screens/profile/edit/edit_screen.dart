@@ -3,12 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../models/user_model.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../widgets/custom_button.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../services/user_service.dart';
+import '/../../theme/app_colors.dart';
+import '/../../theme/app_text_styles.dart';
+import '/../../widgets/custom_button.dart';
+import '/../../providers/auth_provider.dart';
+import '/../../services/profile_service.dart';
 
+/// Unified Edit Profile Screen for both CLIENT and PSYCHOLOGIST roles
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -22,7 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
 
-  final UserService _userService = UserService();
+  final ProfileService _profileService = ProfileService();
   bool _isLoading = false;
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
@@ -50,22 +51,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // ✅ Сначала загружаем аватарку (если выбрана)
+      // Upload avatar first if selected
       if (_selectedImage != null) {
         await _uploadAvatar();
       }
 
-      // ✅ Затем обновляем профиль
-      final updatedUserData = await _userService.updateProfile(
+      // Update profile - теперь возвращает UserModel
+      final updatedUser = await _profileService.updateProfile(
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim().isEmpty
             ? null
             : _phoneController.text.trim(),
       );
 
-      // Обновляем состояние
+      // Update provider
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final updatedUser = UserModel.fromJson(updatedUserData);
       authProvider.updateUser(updatedUser);
 
       if (mounted) {
@@ -83,7 +83,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         );
 
-        Navigator.pop(context, true); // Возвращаем true для обновления
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -107,9 +107,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_selectedImage == null) return;
 
     try {
-      // TODO: Реализовать загрузку на сервер
-      // String avatarUrl = await _userService.uploadAvatar(_selectedImage!);
-      print('Загрузка аватарки: ${_selectedImage!.path}');
+      await _profileService.uploadAvatar(_selectedImage!);
     } catch (e) {
       print('Ошибка загрузки аватарки: $e');
       throw Exception('Не удалось загрузить аватарку');
@@ -350,7 +348,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Avatar with edit button
+                    // Avatar
                     Stack(
                       children: [
                         Container(
@@ -444,7 +442,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       label: 'Email',
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
-                      enabled: false, // Email нельзя менять
+                      enabled: false,
                     ),
 
                     const SizedBox(height: 20),

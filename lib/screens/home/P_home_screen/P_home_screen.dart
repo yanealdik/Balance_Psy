@@ -15,6 +15,7 @@ import '../../P_ScheduleScreen/PsychologistScheduleScreen.dart';
 import '../../chats/P_chats/P_chats_screen.dart';
 import '../../profile/P_profile/psycho_profile.dart';
 import '../../P_AppointmentsScreen/SessionControlScreen.dart';
+import '../../profile/UnifiedProfileScreen.dart';
 
 class PsychologistHomeScreen extends StatefulWidget {
   const PsychologistHomeScreen({super.key});
@@ -29,7 +30,7 @@ class _PsychologistHomeScreenState extends State<PsychologistHomeScreen> {
     PsychologistScheduleScreen(),
     PsychologistReportsScreen(),
     PsychologistChatsScreen(),
-    PsychologistProfileScreen(),
+    UnifiedProfileScreen(),
   ];
   void navigateToTab(int index) => setState(() => _index = index);
   @override

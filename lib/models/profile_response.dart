@@ -1,9 +1,11 @@
+import 'dart:core';
+
 class ProfileResponse {
   final int userId;
   final String email;
   final String fullName;
   final String? phone;
-  final String? dateOfBirth;
+  final DateTime? dateOfBirth;
   final String? avatarUrl;
   final String role;
   final String? gender;
@@ -11,8 +13,8 @@ class ProfileResponse {
   final String? registrationGoal;
   final bool isActive;
   final bool emailVerified;
-  final String? createdAt;
-  final String? lastLogin;
+  final DateTime? createdAt;
+  final DateTime? lastLogin;
   final PsychologistProfileData? psychologistProfile;
 
   ProfileResponse({
@@ -34,21 +36,78 @@ class ProfileResponse {
   });
 
   factory ProfileResponse.fromJson(Map<String, dynamic> json) {
+    // ✅ ИСПРАВЛЕНО: Правильная обработка dateOfBirth
+    DateTime? dateOfBirth;
+    if (json['dateOfBirth'] != null) {
+      if (json['dateOfBirth'] is String) {
+        dateOfBirth = DateTime.parse(json['dateOfBirth']);
+      } else if (json['dateOfBirth'] is List) {
+        // Формат [year, month, day] из Java LocalDate
+        final parts = json['dateOfBirth'] as List;
+        dateOfBirth = DateTime(parts[0], parts[1], parts[2]);
+      }
+    }
+
+    // ✅ ИСПРАВЛЕНО: Правильная обработка createdAt
+    DateTime? createdAt;
+    if (json['createdAt'] != null) {
+      if (json['createdAt'] is String) {
+        createdAt = DateTime.parse(json['createdAt']);
+      } else if (json['createdAt'] is List) {
+        // Формат [year, month, day, hour, minute, second, nano]
+        final parts = json['createdAt'] as List;
+        createdAt = DateTime(
+          parts[0],
+          parts[1],
+          parts[2],
+          parts.length > 3 ? parts[3] : 0,
+          parts.length > 4 ? parts[4] : 0,
+          parts.length > 5 ? parts[5] : 0,
+        );
+      }
+    }
+
+    // ✅ ИСПРАВЛЕНО: Правильная обработка lastLogin
+    DateTime? lastLogin;
+    if (json['lastLogin'] != null) {
+      if (json['lastLogin'] is String) {
+        lastLogin = DateTime.parse(json['lastLogin']);
+      } else if (json['lastLogin'] is List) {
+        final parts = json['lastLogin'] as List;
+        lastLogin = DateTime(
+          parts[0],
+          parts[1],
+          parts[2],
+          parts.length > 3 ? parts[3] : 0,
+          parts.length > 4 ? parts[4] : 0,
+          parts.length > 5 ? parts[5] : 0,
+        );
+      }
+    }
+
+    // ✅ ИСПРАВЛЕНО: Проверка и корректировка avatarUrl
+    String? avatarUrl = json['avatarUrl'] as String?;
+    if (avatarUrl != null && !avatarUrl.startsWith('http')) {
+      // Если это просто UUID, добавляем базовый URL
+      avatarUrl = 'http://localhost:8055/assets/$avatarUrl';
+      print('⚠️ Fixed avatar URL in ProfileResponse: $avatarUrl');
+    }
+
     return ProfileResponse(
       userId: json['userId'] as int,
       email: json['email'] as String,
       fullName: json['fullName'] as String,
       phone: json['phone'] as String?,
-      dateOfBirth: json['dateOfBirth'] as String?,
-      avatarUrl: json['avatarUrl'] as String?,
+      dateOfBirth: dateOfBirth,
+      avatarUrl: avatarUrl,
       role: json['role'] as String,
       gender: json['gender'] as String?,
       interests: (json['interests'] as List?)?.cast<String>(),
       registrationGoal: json['registrationGoal'] as String?,
       isActive: json['isActive'] as bool,
       emailVerified: json['emailVerified'] as bool,
-      createdAt: json['createdAt'] as String?,
-      lastLogin: json['lastLogin'] as String?,
+      createdAt: createdAt,
+      lastLogin: lastLogin,
       psychologistProfile: json['psychologistProfile'] != null
           ? PsychologistProfileData.fromJson(json['psychologistProfile'])
           : null,
@@ -88,7 +147,6 @@ class PsychologistProfileData {
   });
 
   factory PsychologistProfileData.fromJson(Map<String, dynamic> json) {
-    // ✅ ИСПРАВЛЕНО: Безопасное извлечение данных с проверкой на null
     return PsychologistProfileData(
       profileId: json['profileId'] as int,
       specialization: json['specialization'] as String? ?? '',

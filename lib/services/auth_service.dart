@@ -31,54 +31,26 @@ class AuthService {
     }
   }
 
-  /// ✅ Регистрация психолога (С ДЕТАЛЬНОЙ ОТЛАДКОЙ)
+  /// ✅ Регистрация психолога
   Future<UserModel> registerPsychologist(Map<String, dynamic> data) async {
     try {
       print('📤 Registering PSYCHOLOGIST: ${data['email']}');
-      print('📋 Full data received:');
-      print('  - email: ${data['email']}');
-      print('  - fullName: ${data['fullName']}');
-      print(
-        '  - dateOfBirth: ${data['dateOfBirth']} (${data['dateOfBirth'].runtimeType})',
-      );
-      print('  - phone: ${data['phone']}');
-      print('  - gender: ${data['gender']}');
-      print('  - specialization: ${data['specialization']}');
-      print(
-        '  - experienceYears: ${data['experienceYears']} (${data['experienceYears'].runtimeType})',
-      );
-      print('  - education length: ${data['education']?.toString().length}');
-      print('  - bio length: ${data['bio']?.toString().length}');
-      print(
-        '  - approaches: ${data['approaches']} (${data['approaches'].runtimeType})',
-      );
-      print(
-        '  - sessionPrice: ${data['sessionPrice']} (${data['sessionPrice'].runtimeType})',
-      );
 
-      // ✅ ИСПРАВЛЕНО: Преобразуем данные в правильный формат
       final requestData = {
         'email': data['email'],
         'password': data['password'],
         'passwordRepeat': data['password'],
         'fullName': data['fullName'],
-        'dateOfBirth': data['dateOfBirth'], // Уже в формате "YYYY-MM-DD"
+        'dateOfBirth': data['dateOfBirth'],
         'phone': data['phone'],
         'gender': data['gender'],
         'specialization': data['specialization'],
         'experienceYears': data['experienceYears'],
         'education': data['education'],
         'bio': data['bio'],
-        'approaches': (data['approaches'] as Set)
-            .toList(), // ✅ Преобразуем Set -> List
-        'hourlyRate': data['sessionPrice'], // ✅ Отправляем как число
+        'approaches': (data['approaches'] as Set).toList(),
+        'hourlyRate': data['sessionPrice'],
       };
-
-      print('📦 Prepared request data:');
-      print('  - dateOfBirth: ${requestData['dateOfBirth']}');
-      print('  - experienceYears: ${requestData['experienceYears']}');
-      print('  - approaches: ${requestData['approaches']}');
-      print('  - hourlyRate: ${requestData['hourlyRate']}');
 
       final response = await _dio.post(
         '/api/auth/register/psychologist',
@@ -86,7 +58,6 @@ class AuthService {
       );
 
       print('✅ Psychologist registered: ${response.statusCode}');
-      print('📥 Response data: ${response.data}');
 
       if (response.data['success'] == true) {
         return UserModel.fromJson(response.data['data']);
@@ -94,42 +65,10 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Registration failed');
       }
     } on DioException catch (e) {
-      print('❌ Psychologist registration error:');
-      print('   Status code: ${e.response?.statusCode}');
-      print('   Response data: ${e.response?.data}');
-      print('   Message: ${e.message}');
-
-      // ✅ УЛУЧШЕНО: Извлекаем детальное сообщение об ошибке
-      String errorMessage = 'Failed to register psychologist';
-
-      if (e.response?.data != null) {
-        try {
-          if (e.response!.data is Map) {
-            final data = e.response!.data as Map<String, dynamic>;
-
-            // Ищем сообщение об ошибке в разных полях
-            if (data['message'] != null) {
-              errorMessage = data['message'];
-            } else if (data['error'] != null) {
-              errorMessage = data['error'];
-            } else if (data['errors'] != null) {
-              errorMessage = data['errors'].toString();
-            }
-          } else {
-            errorMessage = e.response!.data.toString();
-          }
-        } catch (parseError) {
-          print('⚠️ Error parsing error response: $parseError');
-        }
-      } else if (e.message != null) {
-        errorMessage = e.message!;
-      }
-
-      print('🔴 Final error message: $errorMessage');
-      throw Exception(errorMessage);
-    } catch (e) {
-      print('❌ Unexpected error: $e');
-      throw Exception('Unexpected error: ${e.toString()}');
+      print('❌ Psychologist registration error: ${e.response?.data}');
+      throw Exception(
+        e.response?.data['message'] ?? 'Failed to register psychologist',
+      );
     }
   }
 
@@ -162,12 +101,12 @@ class AuthService {
     }
   }
 
-  /// ✅ Получить расширенный профиль
+  /// ✅ ИСПРАВЛЕНО: Получить расширенный профиль через /api/profile/me
   Future<ProfileResponse> getProfile() async {
     try {
       print('🔵 Getting profile...');
 
-      final response = await _dio.get('/api/auth/profile/me');
+      final response = await _dio.get('/api/profile/me');
 
       print('✅ Profile response: ${response.statusCode}');
 
@@ -195,17 +134,36 @@ class AuthService {
     return await TokenStorage.hasToken();
   }
 
+  /// ✅ ИСПРАВЛЕНО: getCurrentUser теперь вызывает getProfile
   Future<UserModel> getCurrentUser() async {
     try {
-      final response = await _dio.get(ApiEndpoints.userMe);
+      final profile = await getProfile();
 
-      if (response.data['success'] == true) {
-        return UserModel.fromJson(response.data['data']);
-      } else {
-        throw Exception('Failed to load user');
+      // ✅ ИСПРАВЛЕНО: Проверка и корректировка avatarUrl
+      String? avatarUrl = profile.avatarUrl;
+      if (avatarUrl != null && !avatarUrl.startsWith('http')) {
+        // Если это просто UUID, добавляем базовый URL
+        avatarUrl = 'http://localhost:8055/assets/$avatarUrl';
+        print('⚠️ Fixed avatar URL: $avatarUrl');
       }
-    } on DioException catch (e) {
-      throw Exception(e.response?.data['message'] ?? 'Failed to load user');
+
+      // Конвертируем ProfileResponse в UserModel
+      return UserModel(
+        userId: profile.userId,
+        email: profile.email,
+        fullName: profile.fullName,
+        phone: profile.phone,
+        dateOfBirth: profile.dateOfBirth,
+        avatarUrl: avatarUrl,
+        role: profile.role,
+        gender: profile.gender,
+        interests: profile.interests?.toSet(),
+        registrationGoal: profile.registrationGoal,
+        isActive: profile.isActive,
+        emailVerified: profile.emailVerified,
+      );
+    } catch (e) {
+      throw Exception('Failed to load user: $e');
     }
   }
 }
