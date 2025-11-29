@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/custom_button.dart';
+import '../../services/mood_survey_service.dart';
+import '../../models/mood_survey_models.dart';
 
-/// Экран мини-опроса настроения
+/// Экран мини-опроса настроения с сохранением в backend
 class MoodSurveyScreen extends StatefulWidget {
   const MoodSurveyScreen({super.key});
 
@@ -13,7 +15,10 @@ class MoodSurveyScreen extends StatefulWidget {
 
 class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
   final PageController _pageController = PageController();
+  final MoodSurveyService _moodSurveyService = MoodSurveyService();
+
   int _currentPage = 0;
+  bool _isSaving = false;
 
   // Ответы пользователя
   final Map<int, dynamic> _answers = {};
@@ -85,13 +90,8 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Верхняя панель с прогрессом
             _buildTopBar(),
-
-            // Прогресс бар
             _buildProgressBar(),
-
-            // Контент вопросов
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -105,8 +105,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
                 },
               ),
             ),
-
-            // Кнопки навигации
             _buildNavigationButtons(),
           ],
         ),
@@ -114,7 +112,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Верхняя панель
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -132,7 +129,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Прогресс бар
   Widget _buildProgressBar() {
     final progress = (_currentPage + 1) / _questions.length;
 
@@ -178,7 +174,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Страница вопроса
   Widget _buildQuestionPage(int index) {
     final question = _questions[index];
     final type = question['type'] as String;
@@ -189,16 +184,11 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-
-          // Вопрос
           Text(
             question['question'] as String,
             style: AppTextStyles.h2.copyWith(fontSize: 24, height: 1.3),
           ),
-
           const SizedBox(height: 32),
-
-          // Варианты ответов в зависимости от типа
           if (type == 'mood') _buildMoodOptions(index),
           if (type == 'slider') _buildSliderOption(index),
           if (type == 'multiple') _buildMultipleOptions(index),
@@ -208,7 +198,9 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Опции настроения (эмодзи)
+  // [Все методы _buildMoodOptions, _buildSliderOption и т.д. остаются БЕЗ ИЗМЕНЕНИЙ]
+  // Копируем их из оригинального файла...
+
   Widget _buildMoodOptions(int questionIndex) {
     final options = _questions[questionIndex]['options'] as List;
 
@@ -277,7 +269,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Опция слайдера
   Widget _buildSliderOption(int questionIndex) {
     final currentValue = _answers[questionIndex] as double? ?? 5.0;
     final labels = _questions[questionIndex]['labels'] as List<String>;
@@ -297,7 +288,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
       ),
       child: Column(
         children: [
-          // Текущее значение
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -312,10 +302,7 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // Слайдер
           SliderTheme(
             data: SliderThemeData(
               activeTrackColor: AppColors.primary,
@@ -337,10 +324,7 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
               },
             ),
           ),
-
           const SizedBox(height: 8),
-
-          // Метки
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -365,7 +349,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Множественный выбор
   Widget _buildMultipleOptions(int questionIndex) {
     final options = _questions[questionIndex]['options'] as List<String>;
     final selected = _answers[questionIndex] as List<String>? ?? [];
@@ -448,7 +431,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Одиночный выбор
   Widget _buildSingleOptions(int questionIndex) {
     final options =
         _questions[questionIndex]['options'] as List<Map<String, dynamic>>;
@@ -528,7 +510,6 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Кнопки навигации
   Widget _buildNavigationButtons() {
     final isLastPage = _currentPage == _questions.length - 1;
     final hasAnswer = _answers.containsKey(_currentPage);
@@ -550,12 +531,14 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
           if (_currentPage > 0)
             Expanded(
               child: OutlinedButton(
-                onPressed: () {
-                  _pageController.previousPage(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                },
+                onPressed: _isSaving
+                    ? null
+                    : () {
+                        _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
                   side: const BorderSide(color: AppColors.inputBorder),
@@ -570,30 +553,31 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
           if (_currentPage > 0) const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: CustomButton(
-              text: isLastPage ? 'Завершить' : 'Далее',
-              onPressed: hasAnswer
-                  ? () {
-                      if (isLastPage) {
-                        _completeSurvey();
-                      } else {
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      }
-                    }
-                  : null,
-              icon: isLastPage ? Icons.check : Icons.arrow_forward,
-              isFullWidth: true,
-            ),
+            child: _isSaving
+                ? const Center(child: CircularProgressIndicator())
+                : CustomButton(
+                    text: isLastPage ? 'Завершить' : 'Далее',
+                    onPressed: hasAnswer
+                        ? () {
+                            if (isLastPage) {
+                              _completeSurvey();
+                            } else {
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          }
+                        : null,
+                    icon: isLastPage ? Icons.check : Icons.arrow_forward,
+                    isFullWidth: true,
+                  ),
           ),
         ],
       ),
     );
   }
 
-  // Диалог выхода
   void _showExitDialog() {
     showDialog(
       context: context,
@@ -636,21 +620,51 @@ class _MoodSurveyScreenState extends State<MoodSurveyScreen> {
     );
   }
 
-  // Завершить опрос
-  void _completeSurvey() {
-    Navigator.pop(context);
+  // ✅ ОБНОВЛЕНО: Сохранение в backend
+  Future<void> _completeSurvey() async {
+    setState(() => _isSaving = true);
 
-    // Показать результат
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Спасибо! Твои ответы помогут нам лучше тебя понять',
-        ),
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    try {
+      // Собираем данные
+      final request = MoodSurveyRequest(
+        moodScore: _answers[0] as int,
+        stressLevel: (_answers[1] as double).toInt(),
+        concerns: _answers[2] as List<String>?,
+        sleepQuality: _answers[3] as String?,
+        helpfulAction: _answers[4] as String?,
+      );
+
+      // Отправляем на сервер
+      final response = await _moodSurveyService.saveMoodSurvey(request);
+
+      if (mounted) {
+        Navigator.pop(context, true); // Возвращаем true для обновления главной
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Спасибо! Общий балл: ${response.overallScore.toStringAsFixed(0)}/100',
+            ),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 }
