@@ -9,7 +9,7 @@ import '../../widgets/back_button.dart';
 class IntroMeditationScreen extends StatefulWidget {
   final String title;
   final String description;
-  final String audioUrl;
+  final String audioUrl; // Не используется, берем локальный файл
   final int durationSeconds;
 
   const IntroMeditationScreen({
@@ -146,32 +146,30 @@ class _IntroMeditationScreenState extends State<IntroMeditationScreen>
         });
       }
 
-      if (widget.audioUrl.isNotEmpty) {
-        // Воспроизводим с URL
-        setState(() => _isLoading = true);
+      // ✅ Используем локальный файл из assets/video/
+      // AssetSource автоматически добавляет префикс 'assets/', поэтому пишем без него
+      const String audioAssetPath = 'video/intro_meditation.mp3';
 
-        try {
-          await _audioPlayer.play(UrlSource(widget.audioUrl));
-        } catch (e) {
-          print('❌ Error playing audio: $e');
+      setState(() => _isLoading = true);
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Не удалось воспроизвести медитацию'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+      try {
+        await _audioPlayer.play(AssetSource(audioAssetPath));
+      } catch (e) {
+        print('❌ Error playing audio: $e');
 
-          // Запускаем таймер без аудио
-          _startTimerOnly();
-        } finally {
-          setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Не удалось воспроизвести медитацию'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
-      } else {
-        // Если нет URL, просто запускаем таймер
+
+        // Запускаем таймер без аудио
         _startTimerOnly();
+      } finally {
+        setState(() => _isLoading = false);
       }
     }
   }

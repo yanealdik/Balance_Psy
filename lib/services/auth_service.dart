@@ -186,6 +186,11 @@ class AuthService {
     await TokenStorage.clearAll();
   }
 
+  /// Получить сохраненный JWT-токен
+  Future<String?> getToken() {
+    return TokenStorage.getToken();
+  }
+
   Future<bool> isAuthenticated() async {
     return await TokenStorage.hasToken();
   }

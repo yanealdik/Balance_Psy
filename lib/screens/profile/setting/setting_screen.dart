@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import 'change_password_screen.dart';
+import 'delete_account_screen.dart';
+import '../FAQ/faq_screen.dart';
 
 /// Экран настроек приложения
 class SettingsScreen extends StatefulWidget {
@@ -11,10 +14,17 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool notificationsEnabled = true;
+  // ✅ Настройки уведомлений
+  bool pushNotificationsEnabled = true;
   bool soundEnabled = true;
   bool vibrationEnabled = true;
-  bool darkModeEnabled = false;
+  bool meditationReminders = true;
+  bool exerciseReminders = true;
+
+  // ✅ Настройки конфиденциальности
+  bool shareDataForResearch = false;
+  bool analyticsEnabled = true;
+
   String selectedLanguage = 'Русский';
 
   @override
@@ -38,18 +48,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             const SizedBox(height: 8),
 
-            // Секция: Уведомления
+            // ✅ Секция: Уведомления
             _buildSection(
               title: 'Уведомления',
               children: [
                 _buildSwitchItem(
-                  title: 'Включить уведомления',
+                  title: 'Push-уведомления',
                   subtitle: 'Получать push-уведомления',
-                  value: notificationsEnabled,
+                  value: pushNotificationsEnabled,
                   onChanged: (value) {
                     setState(() {
-                      notificationsEnabled = value;
+                      pushNotificationsEnabled = value;
+                      // TODO: Интеграция с Firebase Cloud Messaging
                     });
+                    _showSavedSnackBar();
                   },
                 ),
                 _buildDivider(),
@@ -61,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     setState(() {
                       soundEnabled = value;
                     });
+                    _showSavedSnackBar();
                   },
                 ),
                 _buildDivider(),
@@ -72,6 +85,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     setState(() {
                       vibrationEnabled = value;
                     });
+                    _showSavedSnackBar();
+                  },
+                ),
+                _buildDivider(),
+                _buildSwitchItem(
+                  title: 'Напоминания о медитации',
+                  subtitle: 'Ежедневные напоминания',
+                  value: meditationReminders,
+                  onChanged: (value) {
+                    setState(() {
+                      meditationReminders = value;
+                    });
+                    _showSavedSnackBar();
+                  },
+                ),
+                _buildDivider(),
+                _buildSwitchItem(
+                  title: 'Напоминания об упражнениях',
+                  subtitle: 'Напоминать о выполнении упражнений',
+                  value: exerciseReminders,
+                  onChanged: (value) {
+                    setState(() {
+                      exerciseReminders = value;
+                    });
+                    _showSavedSnackBar();
                   },
                 ),
               ],
@@ -79,21 +117,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Секция: Внешний вид
+            // ✅ Секция: Внешний вид
             _buildSection(
               title: 'Внешний вид',
               children: [
-                _buildSwitchItem(
-                  title: 'Темная тема',
-                  subtitle: 'Использовать темное оформление',
-                  value: darkModeEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      darkModeEnabled = value;
-                    });
-                  },
-                ),
-                _buildDivider(),
                 _buildNavigationItem(
                   title: 'Язык приложения',
                   subtitle: selectedLanguage,
@@ -106,15 +133,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // Секция: Конфиденциальность
+            // ✅ Секция: Конфиденциальность
             _buildSection(
               title: 'Конфиденциальность',
               children: [
+                _buildSwitchItem(
+                  title: 'Аналитика использования',
+                  subtitle: 'Помогать улучшать приложение',
+                  value: analyticsEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      analyticsEnabled = value;
+                    });
+                    _showSavedSnackBar();
+                  },
+                ),
+                _buildDivider(),
+                _buildSwitchItem(
+                  title: 'Данные для исследований',
+                  subtitle: 'Использовать анонимные данные для исследований',
+                  value: shareDataForResearch,
+                  onChanged: (value) {
+                    setState(() {
+                      shareDataForResearch = value;
+                    });
+                    _showSavedSnackBar();
+                  },
+                ),
+                _buildDivider(),
                 _buildNavigationItem(
                   title: 'Политика конфиденциальности',
                   subtitle: 'Как мы обрабатываем ваши данные',
                   onTap: () {
-                    // TODO: Открыть политику конфиденциальности
+                    _showPrivacyPolicy();
                   },
                 ),
                 _buildDivider(),
@@ -122,7 +173,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Условия использования',
                   subtitle: 'Правила и условия',
                   onTap: () {
-                    // TODO: Открыть условия использования
+                    _showTermsOfService();
+                  },
+                ),
+                _buildDivider(),
+                _buildNavigationItem(
+                  title: 'Управление данными',
+                  subtitle: 'Экспорт и удаление данных',
+                  onTap: () {
+                    _showDataManagement();
                   },
                 ),
               ],
@@ -131,50 +190,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 24),
 
             // Секция: Учетная запись
-            _buildSection(
-              title: 'Учетная запись',
-              children: [
-                _buildNavigationItem(
-                  title: 'Изменить пароль',
-                  subtitle: 'Обновить пароль входа',
-                  onTap: () {
-                    // TODO: Изменить пароль
-                  },
-                ),
-                _buildDivider(),
-                _buildNavigationItem(
-                  title: 'Удалить аккаунт',
-                  subtitle: 'Безвозвратное удаление данных',
-                  onTap: () {
-                    _showDeleteAccountDialog();
-                  },
-                  titleColor: AppColors.error,
-                ),
-              ],
+            _buildSectionHeader('Учетная запись'),
+            _buildSettingTile(
+              icon: Icons.lock_outline,
+              title: 'Изменить пароль',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChangePasswordScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildSettingTile(
+              icon: Icons.delete_outline,
+              title: 'Удалить аккаунт',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DeleteAccountScreen(),
+                  ),
+                );
+              },
+              isDestructive: true, // Красный цвет
             ),
 
             const SizedBox(height: 24),
 
             // Секция: Поддержка
-            _buildSection(
-              title: 'Поддержка',
-              children: [
-                _buildNavigationItem(
-                  title: 'Помощь и поддержка',
-                  subtitle: 'Связаться с нами',
-                  onTap: () {
-                    // TODO: Открыть поддержку
-                  },
-                ),
-                _buildDivider(),
-                _buildNavigationItem(
-                  title: 'О приложении',
-                  subtitle: 'Версия 1.0.0',
-                  onTap: () {
-                    _showAboutDialog();
-                  },
-                ),
-              ],
+            _buildSectionHeader('Поддержка'),
+            _buildSettingTile(
+              icon: Icons.help_outline,
+              title: 'Помощь и поддержка',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FAQScreen()),
+                );
+              },
+            ),
+            _buildSettingTile(
+              icon: Icons.info_outline,
+              title: 'О приложении',
+              subtitle: 'Версия 1.0.0',
+              onTap: () => _showAboutDialog(),
             ),
 
             const SizedBox(height: 40),
@@ -224,6 +285,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Заголовок для группы настроек без карточки
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: AppTextStyles.h3.copyWith(fontSize: 18),
+        ),
+      ),
+    );
+  }
+
+  // Элемент настройки с иконкой
+  Widget _buildSettingTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.inputBorder.withOpacity(0.3),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColors.shadow,
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isDestructive ? AppColors.error : AppColors.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.body1.copyWith(
+                        fontSize: 16,
+                        color: isDestructive
+                            ? AppColors.error
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: AppTextStyles.body2.copyWith(fontSize: 13),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // Элемент с переключателем
   Widget _buildSwitchItem({
     required String title,
@@ -251,7 +397,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: AppColors.primary,
+            activeColor: AppColors.primary,
           ),
         ],
       ),
@@ -309,6 +455,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ✅ Уведомление о сохранении
+  void _showSavedSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Настройки сохранены'),
+        duration: const Duration(seconds: 1),
+        backgroundColor: AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
   // Диалог выбора языка
   void _showLanguageDialog() {
     showDialog(
@@ -322,8 +481,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildLanguageOption('Русский'),
-            //_buildLanguageOption('Қазақша'),
-            //_buildLanguageOption('English'),
+            // _buildLanguageOption('Қазақша'),
+            // _buildLanguageOption('English'),
           ],
         ),
       ),
@@ -349,7 +508,140 @@ class _SettingsScreenState extends State<SettingsScreen> {
           selectedLanguage = language;
         });
         Navigator.pop(context);
+        _showSavedSnackBar();
       },
+    );
+  }
+
+  // ✅ Управление данными
+  void _showDataManagement() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: AppColors.cardBackground,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.inputBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('Управление данными', style: AppTextStyles.h3),
+            const SizedBox(height: 20),
+
+            ListTile(
+              leading: const Icon(Icons.download, color: AppColors.primary),
+              title: const Text('Экспорт данных'),
+              subtitle: const Text('Скачать все ваши данные'),
+              onTap: () {
+                Navigator.pop(context);
+                _showComingSoon();
+              },
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: AppColors.error),
+              title: const Text('Удалить все данные'),
+              subtitle: const Text('Безвозвратное удаление'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteAccountDialog();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ Политика конфиденциальности
+  void _showPrivacyPolicy() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Политика конфиденциальности',
+          style: AppTextStyles.h3.copyWith(fontSize: 20),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            '''Мы серьезно относимся к защите ваших данных:
+
+• Все данные шифруются при передаче и хранении
+• Мы не передаем ваши данные третьим лицам без согласия
+• Вы можете удалить свой аккаунт в любое время
+• Анонимные данные могут использоваться для улучшения сервиса
+
+Подробнее: balancepsy.com/privacy''',
+            style: AppTextStyles.body1.copyWith(fontSize: 15),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Понятно',
+              style: AppTextStyles.body1.copyWith(
+                fontSize: 15,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Условия использования
+  void _showTermsOfService() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Условия использования',
+          style: AppTextStyles.h3.copyWith(fontSize: 20),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            '''Используя BalancePsy, вы соглашаетесь:
+
+• Использовать приложение в соответствии с законом
+• Не распространять вредоносный контент
+• Не нарушать права других пользователей
+• Предоставлять точную информацию
+
+Подробнее: balancepsy.com/terms''',
+            style: AppTextStyles.body1.copyWith(fontSize: 15),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Понятно',
+              style: AppTextStyles.body1.copyWith(
+                fontSize: 15,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -381,6 +673,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               Navigator.pop(context);
               // TODO: Удалить аккаунт
+              _showComingSoon();
             },
             child: Text(
               'Удалить',
@@ -441,6 +734,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Скоро будет доступно'),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

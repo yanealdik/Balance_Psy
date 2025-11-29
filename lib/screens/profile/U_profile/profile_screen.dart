@@ -21,7 +21,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool notificationsEnabled = true;
-  bool darkModeEnabled = false;
   final UserService _userService = UserService();
   bool _isLoading = false;
 
@@ -147,7 +146,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     child: user.avatarUrl == null
-                        ? Icon(Icons.person, size: 60, color: AppColors.primary)
+                        ? const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: AppColors.primary,
+                          )
                         : null,
                   ),
                   const SizedBox(height: 16),
@@ -202,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Recommendations Card
+                  // ✅ ИЗМЕНЕНО: Прогресс вместо рекомендаций
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Container(
@@ -225,19 +228,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Мои рекомендации',
-                            style: AppTextStyles.h3.copyWith(fontSize: 20),
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.trending_up,
+                                  color: AppColors.primary,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Прогресс',
+                                style: AppTextStyles.h3.copyWith(fontSize: 20),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
-                          _buildRecommendationItem(
-                            icon: Icons.bedtime,
-                            text: 'Попробуйте 5-минутную медитацию перед сном.',
+                          // Мини-статистика
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatItem(
+                                  icon: Icons.emoji_emotions_outlined,
+                                  label: 'Настроение',
+                                  value: '7 дней',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildStatItem(
+                                  icon: Icons.fitness_center_outlined,
+                                  label: 'Упражнения',
+                                  value: '12',
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
-                          _buildRecommendationItem(
-                            icon: Icons.article_outlined,
-                            text: 'Прочитайте статью: Как говорить о чувствах',
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatItem(
+                                  icon: Icons.school_outlined,
+                                  label: 'Курсы',
+                                  value: '3',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildStatItem(
+                                  icon: Icons.emoji_events_outlined,
+                                  label: 'Достижения',
+                                  value: '5',
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -283,20 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   notificationsEnabled = value;
                                 });
                               },
-                              activeThumbColor: AppColors.primary,
-                            ),
-                          ),
-                          _buildDivider(),
-                          _buildActionItem(
-                            title: 'Темная тема',
-                            trailing: Switch(
-                              value: darkModeEnabled,
-                              onChanged: (value) {
-                                setState(() {
-                                  darkModeEnabled = value;
-                                });
-                              },
-                              activeThumbColor: AppColors.primary,
+                              activeColor: AppColors.primary,
                             ),
                           ),
                           _buildDivider(),
@@ -351,12 +390,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               listen: false,
                             );
                             await authProvider.logout();
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const LoginScreen(),
-                              ),
-                            );
+                            if (mounted) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LoginScreen(),
+                                ),
+                              );
+                            }
                           },
                           borderRadius: BorderRadius.circular(28),
                           child: Center(
@@ -382,33 +423,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildRecommendationItem({
+  Widget _buildStatItem({
     required IconData icon,
-    required String text,
+    required String label,
+    required String value,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppColors.primary, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              text,
-              style: AppTextStyles.body1.copyWith(fontSize: 15),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.primary, size: 20),
+          const SizedBox(height: 8),
+          Text(value, style: AppTextStyles.h3.copyWith(fontSize: 18)),
+          Text(
+            label,
+            style: AppTextStyles.body3.copyWith(
+              fontSize: 12,
+              color: AppColors.textSecondary,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

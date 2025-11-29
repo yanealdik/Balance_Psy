@@ -131,4 +131,6 @@ class UserService {
       throw Exception('Произошла ошибка при обновлении профиля');
     }
   }
+
+  Future getProfile() async {}
 }

@@ -272,7 +272,7 @@ class _FAQScreenState extends State<FAQScreen> {
                     ),
             ),
 
-            // Контакты поддержки
+            // ✅ Контакты поддержки с корпоративной почтой
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -299,7 +299,20 @@ class _FAQScreenState extends State<FAQScreen> {
                           icon: Icons.email_outlined,
                           label: 'Email',
                           onTap: () {
-                            // TODO: Открыть email клиент
+                            // ✅ Показываем корпоративную почту
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('support@balancepsy.com'),
+                                duration: const Duration(seconds: 3),
+                                action: SnackBarAction(
+                                  label: 'Скопировать',
+                                  textColor: AppColors.primary,
+                                  onPressed: () {
+                                    // TODO: Добавить копирование в буфер обмена
+                                  },
+                                ),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -314,6 +327,14 @@ class _FAQScreenState extends State<FAQScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '📧 support@balancepsy.com',
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),

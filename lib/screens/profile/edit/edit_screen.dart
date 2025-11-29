@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../../models/user_model.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
@@ -22,6 +24,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   final UserService _userService = UserService();
   bool _isLoading = false;
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -46,6 +50,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // ✅ Сначала загружаем аватарку (если выбрана)
+      if (_selectedImage != null) {
+        await _uploadAvatar();
+      }
+
+      // ✅ Затем обновляем профиль
       final updatedUserData = await _userService.updateProfile(
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim().isEmpty
@@ -58,32 +68,78 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final updatedUser = UserModel.fromJson(updatedUserData);
       authProvider.updateUser(updatedUser);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Профиль успешно обновлен',
-            style: AppTextStyles.body1.copyWith(color: AppColors.textWhite),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Профиль успешно обновлен',
+              style: AppTextStyles.body1.copyWith(color: AppColors.textWhite),
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        );
+
+        Navigator.pop(context, true); // Возвращаем true для обновления
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ошибка: ${e.toString().replaceAll("Exception: ", "")}',
+            ),
+            backgroundColor: Colors.red,
           ),
-        ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _uploadAvatar() async {
+    if (_selectedImage == null) return;
+
+    try {
+      // TODO: Реализовать загрузку на сервер
+      // String avatarUrl = await _userService.uploadAvatar(_selectedImage!);
+      print('Загрузка аватарки: ${_selectedImage!.path}');
+    } catch (e) {
+      print('Ошибка загрузки аватарки: $e');
+      throw Exception('Не удалось загрузить аватарку');
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
       );
 
-      Navigator.pop(context, true); // Возвращаем true для обновления
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Ошибка: ${e.toString().replaceAll("Exception: ", "")}',
+      print('Ошибка выбора изображения: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Не удалось выбрать изображение: $e'),
+            backgroundColor: Colors.red,
           ),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() => _isLoading = false);
+        );
+      }
     }
   }
 
@@ -119,7 +175,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               title: 'Сделать фото',
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement camera
+                _pickImage(ImageSource.camera);
               },
             ),
             const SizedBox(height: 12),
@@ -128,7 +184,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               title: 'Выбрать из галереи',
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Implement gallery picker + upload
+                _pickImage(ImageSource.gallery);
               },
             ),
             const SizedBox(height: 12),
@@ -137,7 +193,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               title: 'Удалить фото',
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Remove photo
+                setState(() {
+                  _selectedImage = null;
+                });
               },
               isDestructive: true,
             ),
@@ -300,13 +358,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            image: user?.avatarUrl != null
+                            image: _selectedImage != null
                                 ? DecorationImage(
-                                    image: NetworkImage(user!.avatarUrl!),
+                                    image: FileImage(_selectedImage!),
                                     fit: BoxFit.cover,
                                   )
-                                : null,
-                            color: user?.avatarUrl == null
+                                : (user?.avatarUrl != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(user!.avatarUrl!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null),
+                            color:
+                                _selectedImage == null &&
+                                    user?.avatarUrl == null
                                 ? AppColors.primary.withOpacity(0.2)
                                 : null,
                             border: Border.all(
@@ -314,7 +379,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               width: 3,
                             ),
                           ),
-                          child: user?.avatarUrl == null
+                          child:
+                              _selectedImage == null && user?.avatarUrl == null
                               ? const Icon(
                                   Icons.person,
                                   size: 60,

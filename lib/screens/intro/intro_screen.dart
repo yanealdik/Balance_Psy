@@ -41,10 +41,10 @@ class _IntroScreenState extends State<IntroScreen> {
     } catch (e) {
       print('❌ Error loading intro content: $e');
       setState(() => _isLoading = false);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Не удалось загрузить контент интро'),
             backgroundColor: Colors.red,
           ),
@@ -64,7 +64,8 @@ class _IntroScreenState extends State<IntroScreen> {
         screen = IntroVideoScreen(
           title: content.title,
           description: content.description ?? '',
-          videoPath: content.contentUrl ?? '',
+          videoPath:
+              '', // ✅ Передаем пустую строку, т.к. используем локальный файл
         );
         break;
       case 'article':
@@ -77,7 +78,8 @@ class _IntroScreenState extends State<IntroScreen> {
         screen = IntroMeditationScreen(
           title: content.title,
           description: content.description ?? '',
-          audioUrl: content.audioUrl ?? '',
+          audioUrl:
+              '', // ✅ Передаем пустую строку, т.к. используем локальный файл
           durationSeconds: content.durationSeconds ?? 300,
         );
         break;
@@ -97,9 +99,8 @@ class _IntroScreenState extends State<IntroScreen> {
     }
   }
 
-  bool get _allStepsCompleted => 
-      _introContent.isNotEmpty && 
-      completedSteps.length == _introContent.length;
+  bool get _allStepsCompleted =>
+      _introContent.isNotEmpty && completedSteps.length == _introContent.length;
 
   Future<void> _completeIntro() async {
     if (_isCompleting) return;
@@ -128,9 +129,7 @@ class _IntroScreenState extends State<IntroScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Пропустить интро?',
           style: AppTextStyles.h3.copyWith(fontSize: 20),
@@ -183,9 +182,7 @@ class _IntroScreenState extends State<IntroScreen> {
       return Scaffold(
         backgroundColor: AppColors.backgroundLight,
         body: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
-          ),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }

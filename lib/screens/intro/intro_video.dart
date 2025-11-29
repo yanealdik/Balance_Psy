@@ -10,7 +10,8 @@ import '../../widgets/back_button.dart';
 class IntroVideoScreen extends StatefulWidget {
   final String title;
   final String description;
-  final String videoPath; // Путь к видео в assets
+  final String
+  videoPath; // Путь к видео в assets (не используется, берем дефолтный)
 
   const IntroVideoScreen({
     super.key,
@@ -36,7 +37,9 @@ class _IntroVideoScreenState extends State<IntroVideoScreen> {
   }
 
   Future<void> _initializePlayer() async {
-    _controller = VideoPlayerController.asset(widget.videoPath);
+    // ✅ Используем локальный файл из assets/video/
+    const String videoAssetPath = 'assets/video/intro_video.mp4';
+    _controller = VideoPlayerController.asset(videoAssetPath);
 
     try {
       await _controller.initialize();
@@ -49,6 +52,14 @@ class _IntroVideoScreenState extends State<IntroVideoScreen> {
       _controller.addListener(_videoListener);
     } catch (e) {
       debugPrint('Ошибка инициализации видео: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось загрузить видео'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -180,7 +191,7 @@ class _IntroVideoScreenState extends State<IntroVideoScreen> {
                                   alignment: Alignment.center,
                                   children: [
                                     VideoPlayer(_controller),
-                                    
+
                                     // Оверлей с кнопкой play/pause
                                     GestureDetector(
                                       onTap: _togglePlayPause,
@@ -189,9 +200,11 @@ class _IntroVideoScreenState extends State<IntroVideoScreen> {
                                         child: Center(
                                           child: AnimatedOpacity(
                                             opacity: _isPlaying ? 0.0 : 1.0,
-                                            duration: const Duration(milliseconds: 200),
+                                            duration: const Duration(
+                                              milliseconds: 200,
+                                            ),
                                             child: Container(
-                                              decoration: BoxDecoration(
+                                              decoration: const BoxDecoration(
                                                 color: Colors.black54,
                                                 shape: BoxShape.circle,
                                               ),
@@ -216,7 +229,7 @@ class _IntroVideoScreenState extends State<IntroVideoScreen> {
                                       right: 0,
                                       child: Container(
                                         padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
+                                        decoration: const BoxDecoration(
                                           gradient: LinearGradient(
                                             begin: Alignment.bottomCenter,
                                             end: Alignment.topCenter,
@@ -229,7 +242,9 @@ class _IntroVideoScreenState extends State<IntroVideoScreen> {
                                         child: Row(
                                           children: [
                                             Text(
-                                              _formatDuration(_controller.value.position),
+                                              _formatDuration(
+                                                _controller.value.position,
+                                              ),
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 12,
@@ -240,16 +255,22 @@ class _IntroVideoScreenState extends State<IntroVideoScreen> {
                                               child: VideoProgressIndicator(
                                                 _controller,
                                                 allowScrubbing: true,
-                                                colors: VideoProgressColors(
-                                                  playedColor: AppColors.primary,
-                                                  bufferedColor: Colors.grey,
-                                                  backgroundColor: Colors.white24,
-                                                ),
+                                                colors:
+                                                    const VideoProgressColors(
+                                                      playedColor:
+                                                          AppColors.primary,
+                                                      bufferedColor:
+                                                          Colors.grey,
+                                                      backgroundColor:
+                                                          Colors.white24,
+                                                    ),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
                                             Text(
-                                              _formatDuration(_controller.value.duration),
+                                              _formatDuration(
+                                                _controller.value.duration,
+                                              ),
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 12,

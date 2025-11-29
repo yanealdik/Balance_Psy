@@ -88,7 +88,9 @@ flutter:
     - assets/images/mood/mood_sad.png
     - assets/images/mood/mood_depressed.png
     - assets/images/avatar/Galiya.png
-    - assets/video/intro.mp4
+    - assets/video/intro_meditation.mp3
+    - assets/video/intro_video.mp4
+
 
   fonts:
     - family: Manrope
